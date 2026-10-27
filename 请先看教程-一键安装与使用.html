@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>请先看教程｜B站字幕桌面歌词</title>
+  <style>
+    :root {
+      --paper: #f5f0e7;
+      --paper-2: #fbf8f1;
+      --ink: #24221e;
+      --muted: #6f685e;
+      --line: #c9c0b1;
+      --accent: #a54835;
+      --accent-dark: #733023;
+      --signal: #d9a441;
+      --shadow: rgba(57, 42, 29, .14);
+    }
+    * { box-sizing: border-box; }
+    html { background: #ddd5c8; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(255,255,255,.2), rgba(255,255,255,.2)),
+        repeating-linear-gradient(0deg, rgba(60,48,35,.025) 0, rgba(60,48,35,.025) 1px, transparent 1px, transparent 5px),
+        var(--paper);
+      font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+      line-height: 1.65;
+    }
+    a { color: var(--accent-dark); }
+    .page { max-width: 1180px; margin: 0 auto; padding: 22px clamp(18px, 4vw, 54px) 64px; }
+    .masthead { border-top: 5px solid var(--ink); border-bottom: 1px solid var(--ink); padding: 10px 0 12px; display: flex; justify-content: space-between; gap: 20px; align-items: end; }
+    .kicker { font: 700 12px/1.2 "Segoe UI", sans-serif; letter-spacing: .18em; text-transform: uppercase; }
+    .issue { color: var(--muted); font: 600 12px/1.2 "Segoe UI", sans-serif; letter-spacing: .08em; }
+    .notice { margin: 24px 0 18px; padding: 11px 15px; border: 1px solid var(--accent); background: #f4dfd4; color: var(--accent-dark); font-weight: 700; }
+    .hero { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(260px, .65fr); gap: 38px; padding: 24px 0 30px; border-bottom: 3px double var(--ink); }
+    h1, h2, h3 { font-family: Georgia, "Songti SC", "SimSun", serif; font-weight: 600; letter-spacing: -.02em; }
+    h1 { font-size: clamp(38px, 6vw, 76px); line-height: .98; margin: 0 0 18px; max-width: 760px; }
+    .dek { max-width: 650px; font: 500 clamp(17px, 2vw, 22px)/1.45 Georgia, "Songti SC", serif; margin: 0; }
+    .dateline { align-self: end; border-left: 4px solid var(--accent); padding: 5px 0 5px 18px; color: var(--muted); }
+    .dateline strong { display: block; color: var(--ink); font: 600 23px/1.2 Georgia, serif; }
+    .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin: 26px 0 34px; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); }
+    .step { padding: 17px 17px 16px; min-height: 158px; border-right: 1px solid var(--line); }
+    .step:last-child { border-right: 0; }
+    .num { color: var(--accent); font: 700 28px/1 Georgia, serif; }
+    .step h3 { margin: 10px 0 4px; font-size: 19px; }
+    .step p { color: var(--muted); margin: 0; font-size: 14px; }
+    .content { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(240px, .55fr); gap: 40px; }
+    .section-label { display: flex; align-items: center; gap: 12px; margin: 0 0 16px; font: 700 12px/1.2 "Segoe UI", sans-serif; letter-spacing: .16em; text-transform: uppercase; }
+    .section-label::after { content: ""; height: 1px; background: var(--line); flex: 1; }
+    .install-card { background: var(--paper-2); border: 1px solid var(--ink); padding: 25px clamp(20px, 3vw, 34px); box-shadow: 8px 8px 0 var(--shadow); }
+    .install-card h2 { margin: 0 0 10px; font-size: clamp(26px, 4vw, 42px); line-height: 1.08; }
+    .install-card ol { margin: 20px 0 0; padding-left: 23px; }
+    .install-card li { margin: 13px 0; padding-left: 5px; }
+    code { background: #e6ded1; padding: 2px 5px; font: 600 .92em Consolas, monospace; }
+    .callout { margin: 22px 0 0; padding: 15px 17px; border-left: 4px solid var(--signal); background: #f6ecd2; }
+    .side { border-top: 3px solid var(--ink); }
+    .side-block { padding: 16px 0 20px; border-bottom: 1px solid var(--line); }
+    .side h2 { font-size: 25px; margin: 0 0 8px; }
+    .side p, .side li { font-size: 14px; color: var(--muted); }
+    .side ul { margin: 8px 0 0; padding-left: 20px; }
+    .cta { display: inline-block; margin-top: 20px; padding: 12px 18px; background: var(--accent); color: #fff; text-decoration: none; font-weight: 700; border: 1px solid var(--accent-dark); transition: transform .2s ease, background .2s ease; }
+    .cta:hover, .cta:focus-visible { background: var(--accent-dark); transform: translateY(-2px); }
+    .footer { margin-top: 34px; padding-top: 14px; border-top: 3px double var(--ink); color: var(--muted); font-size: 13px; display: flex; justify-content: space-between; gap: 20px; }
+    :focus-visible { outline: 3px solid var(--signal); outline-offset: 3px; }
+    @media (max-width: 800px) { .hero, .content { grid-template-columns: 1fr; gap: 22px; } .steps { grid-template-columns: repeat(2, 1fr); } .step:nth-child(2) { border-right: 0; } .step:nth-child(-n+2) { border-bottom: 1px solid var(--line); } }
+    @media (max-width: 480px) { .page { padding-inline: 15px; } .masthead { align-items: start; flex-direction: column; gap: 7px; } .steps { grid-template-columns: 1fr; } .step { border-right: 0; border-bottom: 1px solid var(--line); } .step:last-child { border-bottom: 0; } .footer { flex-direction: column; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; } }
+    @media print { html, body { background: #fff; } .page { max-width: none; } .cta { color: #000; background: #fff; } }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="masthead">
+      <div class="kicker">BILI-SUB / DESKTOP CAPTIONS</div>
+      <div class="issue">首次使用指南 · v0.6.1</div>
+    </header>
+
+    <div class="notice">这是解压后应该首先打开的教程文件。请先看完，再运行同目录的「一键安装器.cmd」。</div>
+
+    <section class="hero" aria-labelledby="title">
+      <div>
+        <h1 id="title">把字幕<br>放到桌面上。</h1>
+        <p class="dek">用四个步骤，把 B 站视频字幕变成一块透明、置顶、可以随手调整的桌面阅读卡。</p>
+      </div>
+      <div class="dateline">
+        <strong>先读这一页</strong>
+        安装不需要复制扩展 ID。<br>
+        透明置顶需要 Windows 原生助手。<br>
+        原视频页面需要保持打开。
+      </div>
+    </section>
+
+    <section class="steps" aria-label="安装流程">
+      <article class="step"><div class="num">01</div><h3>完整解压</h3><p>把整个压缩包解压到准备长期保留的文件夹，不要只拎出一个文件。</p></article>
+      <article class="step"><div class="num">02</div><h3>一键登记</h3><p>双击同目录的「一键安装器.cmd」，它会自动登记透明桌面助手。</p></article>
+      <article class="step"><div class="num">03</div><h3>加载扩展</h3><p>在 Chrome 或 Edge 的扩展管理页，点击「加载已解压的扩展程序」。</p></article>
+      <article class="step"><div class="num">04</div><h3>刷新 B 站</h3><p>选择当前文件夹，刷新视频页，点「桌面置顶」即可开始使用。</p></article>
+    </section>
+
+    <div class="content">
+      <section>
+        <p class="section-label">QUICK START / 快速开始</p>
+        <article class="install-card">
+          <h2>一次安装，之后直接使用</h2>
+          <ol>
+            <li>确认这个文件夹里能看到 <code>manifest.json</code>、<code>native</code> 和本教程。</li>
+            <li>双击根目录的 <code>一键安装器.cmd</code>。它会自动识别 Chrome 或 Edge，并打开扩展管理页。</li>
+            <li>在扩展管理页打开「开发者模式」，点击「加载已解压的扩展程序」，选中当前文件夹。</li>
+            <li>回到 B 站视频页并刷新。视频有可读取字幕时，点击页面中的「桌面置顶」。</li>
+          </ol>
+          <div class="callout"><strong>不需要填写 ID。</strong> 安装器会从随包公钥自动得到固定扩展 ID，并在当前用户下登记 Chrome / Edge 的 Native Messaging 宿主。</div>
+          <a class="cta" href="chrome://extensions/">打开 Chrome 扩展管理页</a>
+          <a class="cta" href="edge://extensions/">打开 Edge 扩展管理页</a>
+        </article>
+      </section>
+
+      <aside class="side">
+        <div class="side-block">
+          <h2>你会看到什么</h2>
+          <ul>
+            <li>字幕文字有局部底色，空白区域透明。</li>
+            <li>当前句用下划线标记。</li>
+            <li>鼠标移开后，字幕占满整个窗口。</li>
+            <li>窗口可以拖动、缩放、调透明度和倍速。</li>
+          </ul>
+        </div>
+        <div class="side-block">
+          <h2>出了问题？</h2>
+          <p>桌面助手未连接：重新双击「一键安装器.cmd」，再重新加载扩展并刷新 B 站。</p>
+          <p>没有字幕：画面烧录文字无法读取，请确认播放器里有 CC/字幕。</p>
+          <p>移动过文件夹：再运行一次安装器，让系统更新助手路径。</p>
+        </div>
+        <div class="side-block">
+          <h2>隐私边界</h2>
+          <p>扩展不读取 Cookie，不申请 cookies 权限，不保存登录凭证。助手不联网、不监听端口，只接收当前 B 站页面的播放与字幕消息。</p>
+        </div>
+      </aside>
+    </div>
+
+    <footer class="footer"><span>B 站字幕桌面歌词 · 本地个人使用</span><span>Windows · Chrome / Edge · Manifest V3</span></footer>
+  </main>
+</body>
+</html>

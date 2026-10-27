@@ -1,0 +1,16 @@
+[bili-sub] 2026-10-26 Chrome/Windows development session; no credentials recorded
+[bili-sub] reconnaissance BV1XNtJ6UEmm player-list HTTP=200 code=0 subtitle-count=0
+[bili-sub] reconnaissance BV11GeRzaEs3 player-list HTTP=200 code=0 languages=6 collection-episodes=8
+[bili-sub] subtitle-host aisubtitle.hdslb.com path-prefix=/bfs/ai_subtitle/
+[bili-sub] subtitle-file HTTP=200 credentials=omit language=ai-zh count=2139 first-start=1.22 last-end=5180.22
+[bili-sub] prototype-main injected local module files into authorized Bilibili test page; file body reused in memory
+[bili-sub] M1 PARTIAL source=api lang=ai-zh count=2139 time=0.0 index=none; real-time video not loaded in alternate automation window
+[bili-sub] M2 PARTIAL trusted-CDP-mouse-click=true document-pip-open=true card-in-pip=true
+[bili-sub] lifecycle PiP closed; card-restored=true mode=inline
+[bili-sub] M3 PENDING real-video readyState=0 networkState=2; no fabricated playback success
+[bili-sub] M4 PENDING real collection navigation; offline algorithm passed
+[bili-sub] M5 OFFLINE PASS click-seek wiring; font/background controls implemented
+[bili-sub] offline-test total=20 passed=20 failed=0
+[bili-sub] final-syntax PASS; manifest-references PASS
+[bili-sub] extension-install PENDING user load-unpacked; prototype validation is not installed-extension validation
+[bili-sub] cross-application screenshot and 60-second background synchronization PENDING manual validation

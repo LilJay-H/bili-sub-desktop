@@ -1,0 +1,45 @@
+{
+  "manifest_version": 3,
+  "name": "B站字幕桌面歌词 Demo",
+  "version": "0.6.1",
+  "description": "在置顶歌词卡中查看 B 站字幕并控制播放，仅个人本地使用。",
+  "minimum_chrome_version": "116",
+  "host_permissions": [
+    "https://aisubtitle.hdslb.com/*"
+  ],
+  "permissions": [
+    "nativeMessaging"
+  ],
+  "background": {
+    "service_worker": "worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.bilibili.com/*"
+      ],
+      "js": [
+        "content/bridge.js",
+        "content/desktop-bridge.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://www.bilibili.com/*"
+      ],
+      "js": [
+        "content/transport.js",
+        "content/subtitle.js",
+        "content/player.js",
+        "content/desktop.js",
+        "content/overlay-style.js",
+        "content/overlay.js",
+        "content/main.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    }
+  ],
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1bFtXWkDBPqSC/rseqLuKZ1chYqUvQ0xTUfEVkFgUpJZAdCSIBAJoEHxTk0zSpLJOG5Bn5eCOs8sJAmqsg5FrnyABA2YRKhR1Q0lt16booWtsT5M98P+ZQZwK8d3jags7MciiO+zH849uO5zZy/bS4Q8dW9v05a/dyb224NIuUivGpnHpbZKb298VjiReXNxmmrbSsGZKQLQnmx6Sg/mztCuANcUkHEt5sRrQhN63dfFwgORW1n9cbs2REfSq+vdiCAz0xgfV8Uu+FCakavUWKJDIYfEXACEnJPeZUGtSewDY1dQ8hCyltLqr1Ze89SasC6Nsh94LTOBsp/lDcwkxQIDAQAB"
+}

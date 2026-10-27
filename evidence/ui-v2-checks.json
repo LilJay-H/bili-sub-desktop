@@ -1,0 +1,41 @@
+{
+  "kind": "isolated-offline-chromium",
+  "before": {
+    "width": 760,
+    "height": 192,
+    "revealed": "false",
+    "opacity": "0",
+    "alpha": "0.15",
+    "overflow": false,
+    "current": "把注意力留给内容，字幕轻轻跟随。",
+    "bodyScroll": 0
+  },
+  "after": {
+    "width": 760,
+    "height": 192,
+    "revealed": "false",
+    "opacity": "0",
+    "alpha": "0",
+    "overflow": false,
+    "current": "把注意力留给内容，字幕轻轻跟随。",
+    "bodyScroll": 0
+  },
+  "narrow": {
+    "width": 343,
+    "height": 192,
+    "revealed": "false",
+    "opacity": "0",
+    "alpha": "0",
+    "overflow": false,
+    "current": "把注意力留给内容，字幕轻轻跟随。",
+    "bodyScroll": 0
+  },
+  "checks": [
+    "idle hides chrome",
+    "hover reveals controls",
+    "mouse leave hides focused controls and settings",
+    "transparency changes and persists",
+    "375px no toolbar overflow",
+    "subtitle scroll does not scroll page"
+  ]
+}

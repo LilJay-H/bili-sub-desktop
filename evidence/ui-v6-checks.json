@@ -1,0 +1,122 @@
+{
+  "kind": "isolated-offline-chromium",
+  "before": {
+    "left": 496,
+    "top": 504,
+    "width": 760,
+    "height": 192,
+    "revealed": "false",
+    "opacity": "0",
+    "alpha": "0",
+    "overflow": false,
+    "current": "把注意力留给内容，字幕轻轻跟随。",
+    "bodyScroll": 0,
+    "lyricsHeight": 180
+  },
+  "backingCheck": {
+    "active": "rgba(247, 244, 237, 0.9)",
+    "normal": "rgba(247, 244, 237, 0.9)",
+    "activeInk": "rgb(48, 45, 40)",
+    "normalInk": "rgb(48, 45, 40)",
+    "underline": "underline",
+    "plain": "none"
+  },
+  "hovered": {
+    "left": 496,
+    "top": 504,
+    "width": 760,
+    "height": 192,
+    "revealed": "true",
+    "opacity": "1",
+    "alpha": "0",
+    "overflow": false,
+    "current": "把注意力留给内容，字幕轻轻跟随。",
+    "bodyScroll": 0,
+    "lyricsHeight": 117
+  },
+  "panelCheck": {
+    "opaque": "rgb(247, 244, 237)",
+    "scrollable": true,
+    "header": 47
+  },
+  "after": {
+    "left": 496,
+    "top": 504,
+    "width": 760,
+    "height": 192,
+    "revealed": "false",
+    "opacity": "0",
+    "alpha": "0",
+    "overflow": false,
+    "current": "把注意力留给内容，字幕轻轻跟随。",
+    "bodyScroll": 0,
+    "lyricsHeight": 180
+  },
+  "moved": {
+    "left": 316,
+    "top": 324,
+    "width": 760,
+    "height": 192,
+    "revealed": "true",
+    "opacity": "1",
+    "alpha": "0",
+    "overflow": false,
+    "current": "把注意力留给内容，字幕轻轻跟随。",
+    "bodyScroll": 0,
+    "lyricsHeight": 117
+  },
+  "resized": {
+    "left": 316,
+    "top": 324,
+    "width": 840,
+    "height": 262,
+    "revealed": "true",
+    "opacity": "1",
+    "alpha": "0",
+    "overflow": false,
+    "current": "把注意力留给内容，字幕轻轻跟随。",
+    "bodyScroll": 0,
+    "lyricsHeight": 187
+  },
+  "restored": {
+    "left": 316,
+    "top": 324,
+    "width": 840,
+    "height": 262,
+    "revealed": "false",
+    "opacity": "0",
+    "alpha": "0",
+    "overflow": false,
+    "current": "把视频放在后台，也能跟上谈话。",
+    "bodyScroll": 0,
+    "lyricsHeight": 250
+  },
+  "narrow": {
+    "left": 8,
+    "top": 504,
+    "width": 359,
+    "height": 192,
+    "revealed": "false",
+    "opacity": "0",
+    "alpha": "0",
+    "overflow": false,
+    "current": "把注意力留给内容，字幕轻轻跟随。",
+    "bodyScroll": 0,
+    "lyricsHeight": 180
+  },
+  "density18": 18,
+  "density14": 30,
+  "longLines": 20,
+  "checks": [
+    "idle full frame restored after hover",
+    "pointer drag and edge resize",
+    "geometry persistence",
+    "shared-line sentences",
+    "smaller font shows more cues",
+    "long cue complete and aligned from start",
+    "wheel suspends following",
+    "resume following",
+    "popup removed",
+    "375px no toolbar overflow"
+  ]
+}
