@@ -42,7 +42,7 @@
     if (value.type !== 'command') return null;
     const action = value.action;
     if (['toggle','prev','next','close'].includes(action)) return { type:'command', action };
-    const ranges = { seekBy:[-120,120], seekTo:[0,1e9], setRate:[0.25,4] };
+    const ranges = { volumeBy:[-1,1], seekBy:[-120,120], seekTo:[0,1e9], setRate:[0.25,4] };
     if (ranges[action]) return number(value.value, ...ranges[action]) ? { type:'command', action, value:value.value } : null;
     if (action !== 'appearance') return null;
     const result = { type:'command', action };

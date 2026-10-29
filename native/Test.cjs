@@ -4,7 +4,7 @@ const path=require('node:path');
 const fs=require('node:fs/promises');
 const assert=require('node:assert/strict');
 const exe=path.join(__dirname,'BiliSubDesktop.exe');
-const evidence=path.resolve(process.argv[2]||path.join(__dirname,'../evidence/v0.7.0'));
+const evidence=path.resolve(process.argv[2]||path.join(__dirname,'../evidence/v0.7.1'));
 const frame=value=>{const body=Buffer.from(JSON.stringify(value),'utf8'),head=Buffer.alloc(4);head.writeUInt32LE(body.length);return Buffer.concat([head,body]);};
 async function render(){
   const child=spawn(exe,['--self-test',evidence],{windowsHide:true,stdio:'ignore'});

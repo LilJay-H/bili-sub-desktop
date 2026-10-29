@@ -68,7 +68,7 @@ function integratedSetup(){
   }
   const main=world(),isolated=world();
   vm.runInNewContext(fs.readFileSync('content/desktop-bridge.js','utf8'),{window:isolated.window,top:isolated.window,location:{origin},chrome:{runtime}});
-  const video=new EventTarget();Object.assign(video,{currentTime:5,duration:500,readyState:4,playbackRate:1,paused:false,isConnected:true,clientWidth:640});
+  const video=new EventTarget();Object.assign(video,{volume:0.5,muted:false,currentTime:5,duration:500,readyState:4,playbackRate:1,paused:false,isConnected:true,clientWidth:640});
   video.play=async()=>{video.paused=false;video.dispatchEvent(new Event('play'));};video.pause=()=>{video.paused=true;video.dispatchEvent(new Event('pause'));};
   const document=new EventTarget();document.querySelectorAll=selector=>selector==='video'?[video]:[];
   main.window.__INITIAL_STATE__={videoData:{bvid:'BVtest1',aid:101,cid:201,pages:[{page:1,cid:201}]}};
@@ -128,5 +128,20 @@ test('进度链路传真实总时长，拖动命令落到video并限界，未知
     e.command({action:'seekTo',value:999});await e.settle();assert.equal(e.video.currentTime,500);
     e.video.duration=Infinity;e.video.dispatchEvent(new Event('durationchange'));await e.settle();assert.equal(e.nativeStates.at(-1).duration,0);
     e.video.duration=200;e.video.currentTime=0;e.video.dispatchEvent(new Event('loadedmetadata'));await e.settle();assert.equal(e.nativeStates.at(-1).duration,200);
+  } finally {await e.close();}
+});
+
+
+test('音量命令贯通四层：每次10个百分点、上下限、静音与非法命令',async()=>{
+  const e=integratedSetup();await e.desktop.open();await e.settle();
+  const change=async value=>{e.command({action:'volumeBy',value});await e.settle();};
+  try {
+    await change(.1);assert.equal(e.video.volume,.6);
+    await change(-.1);assert.equal(e.video.volume,.5);
+    e.video.volume=.95;await change(.1);assert.equal(e.video.volume,1);
+    e.video.volume=.05;await change(-.1);assert.equal(e.video.volume,0);
+    e.video.volume=.8;e.video.muted=true;await change(.1);assert.equal(e.video.volume,.1);assert.equal(e.video.muted,false);
+    await change(2);await change(NaN);await change('0.1');assert.equal(e.video.volume,.1);
+    e.video.muted=true;await change(-.1);assert.equal(e.video.volume,0);assert.equal(e.video.muted,true);
   } finally {await e.close();}
 });

@@ -47,7 +47,7 @@ test('manifest 固定公钥为 RSA-2048 SPKI，独立计算扩展 ID',()=>{
   const key=crypto.createPublicKey({key:keyBytes,format:'der',type:'spki'});
   assert.equal(key.asymmetricKeyType,'rsa');assert.equal(key.asymmetricKeyDetails.modulusLength,2048);
   assert.equal(key.asymmetricKeyDetails.publicExponent,65537n);
-  assert.match(fixedId,/^[a-p]{32}$/);assert.equal(original.version,'0.7.0');
+  assert.match(fixedId,/^[a-p]{32}$/);assert.equal(original.version,'0.7.1');
   const installer=fs.readFileSync('native/Install.ps1');assert.deepEqual([...installer.subarray(0,3)],[239,187,191],'Windows PS5 中文脚本须带 UTF8 BOM');
   assert.ok(!installer.toString('utf8').includes('Read-Host'));
 });

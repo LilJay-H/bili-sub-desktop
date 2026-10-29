@@ -39,6 +39,7 @@
       switch(message.action){
         case 'toggle': await player.toggle(); break;
         case 'seekBy': if(Number.isFinite(n)&&Math.abs(n)<=120)player.seekBy(n); break;
+        case 'volumeBy': if(Number.isFinite(n)&&Math.abs(n)<=1)player.volumeBy(n); break;
         case 'seekTo': if(Number.isFinite(n)&&n>=0)player.seekTo(n); break;
         case 'setRate': if(Number.isFinite(n)&&n>=.25&&n<=4)player.setRate(n); break;
         case 'prev': await player.prev(); break;

@@ -89,6 +89,10 @@ internal sealed class SubtitleWindow : Window {
     readonly Border seekKnob = new Border {Width=6,Height=6,CornerRadius=new CornerRadius(3),HorizontalAlignment=HorizontalAlignment.Left,VerticalAlignment=VerticalAlignment.Center};
     readonly Border idleTrack = new Border {Height=2,VerticalAlignment=VerticalAlignment.Bottom,IsHitTestVisible=false};
     readonly Border idleFill = new Border {HorizontalAlignment=HorizontalAlignment.Left};
+    readonly Grid captionRail=new Grid {Width=12,HorizontalAlignment=HorizontalAlignment.Right,Margin=new Thickness(0,26,6,38),Background=Brushes.Transparent};
+    readonly Border captionTrack=new Border {Width=2,HorizontalAlignment=HorizontalAlignment.Center,CornerRadius=new CornerRadius(2),IsHitTestVisible=false};
+    readonly Thumb captionThumb=new Thumb {Width=12,VerticalAlignment=VerticalAlignment.Top,Cursor=Cursors.Hand,Focusable=false};
+    bool railHover,thumbHover;
     readonly List<Hyperlink> lines = new List<Hyperlink>();
     readonly List<double> starts = new List<double>();
     readonly List<int> offsets = new List<int>(), lengths = new List<int>();
@@ -130,7 +134,7 @@ internal sealed class SubtitleWindow : Window {
         Rect work=SystemParameters.WorkArea;Left=work.Right-Width-30;Top=work.Bottom-Height-30;
         if(!Program.Testing && !Program.ProtocolTesting)LoadGeometry();
         Content=canvas;
-        scroll.Margin=new Thickness(10,4,10,4);scroll.VerticalScrollBarVisibility=ScrollBarVisibility.Hidden;scroll.HorizontalScrollBarVisibility=ScrollBarVisibility.Disabled;
+        scroll.Margin=new Thickness(8,2,8,3);scroll.VerticalScrollBarVisibility=ScrollBarVisibility.Hidden;scroll.HorizontalScrollBarVisibility=ScrollBarVisibility.Disabled;
         text.TextWrapping=TextWrapping.Wrap;text.LineHeight=30;text.Padding=new Thickness(1,0,1,0);
         text.Focusable=true;
         text.PreviewMouseLeftButtonDown+=delegate {text.Focus();};
@@ -140,9 +144,9 @@ internal sealed class SubtitleWindow : Window {
         Grid textLayer=new Grid();textLayer.Children.Add(captionBackdrop);textLayer.Children.Add(text);scroll.Content=textLayer;canvas.Children.Add(scroll);
         captionBackdrop.Shape=PlateGeometry;text.SizeChanged+=delegate{captionBackdrop.InvalidateVisual();};
         scroll.PreviewMouseWheel += delegate {following=false;follow.Visibility=Visibility.Visible;};
-        BuildControlStyle();BuildChrome();BuildGrips();ApplyAppearance();Reveal(false);
+        BuildControlStyle();BuildChrome();BuildCaptionScrollbar();BuildGrips();ApplyAppearance();Reveal(false);
         canvas.MouseEnter += delegate {Reveal(true);};
-        canvas.MouseLeave += delegate {if(!IsMouseOver && !scrubbing && !grips.Exists(g=>g.IsDragging))Reveal(false);};
+        canvas.MouseLeave += delegate {if(!IsMouseOver && !scrubbing && !captionThumb.IsDragging && !grips.Exists(g=>g.IsDragging))Reveal(false);};
         SizeChanged += delegate { ArrangeSettings();UpdateProgress();if(following) Dispatcher.BeginInvoke(new Action(Center),DispatcherPriority.Loaded); };
         PreviewKeyDown += delegate(object sender,KeyEventArgs e) {
             if(e.Key==Key.Tab)Reveal(true);
@@ -183,6 +187,7 @@ internal sealed class SubtitleWindow : Window {
         if(Keyboard.Modifiers!=ModifierKeys.None)return false;
         if(key==Key.Space){if(!repeat)Command("toggle",0);return true;}
         if(key==Key.Left||key==Key.Right){Command("seekBy",key==Key.Left?-step:step);return true;}
+        if(key==Key.Up||key==Key.Down){Command("volumeBy",key==Key.Up?0.1:-0.1);return true;}
         return false;
     }
     void BuildChrome() {
@@ -193,7 +198,7 @@ internal sealed class SubtitleWindow : Window {
         clock.FontSize=14;clock.FontWeight=FontWeights.Bold;clock.VerticalAlignment=VerticalAlignment.Center;clock.HorizontalAlignment=HorizontalAlignment.Center;Grid.SetColumn(clock,1);header.Children.Add(clock);
         status.Text="字幕 · 拖动移动";status.FontSize=11;status.TextTrimming=TextTrimming.CharacterEllipsis;status.VerticalAlignment=VerticalAlignment.Center;
         Border handle=new Border {Child=status,Background=Brushes.Transparent,Cursor=Cursors.SizeAll,Padding=new Thickness(9,0,3,0),ToolTip="拖动此处移动，拖边框缩放"};
-        handle.MouseLeftButtonDown+=delegate {try{DragMove();SaveGeometry();}catch{};};header.Children.Add(handle);
+        header.Children.Add(handle);
         top.Child=header;top.Height=24;top.VerticalAlignment=VerticalAlignment.Top;top.Margin=new Thickness(4,1,4,0);top.BorderThickness=new Thickness(0,0,0,1);canvas.Children.Add(top);
         WrapPanel controls=new WrapPanel {Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Center};
         Button previous=MakeButton("|‹",delegate{Command("prev",0);});previous.ToolTip="上一集 / 上一分P";previous.FontSize=17;controls.Children.Add(previous);
@@ -207,6 +212,7 @@ internal sealed class SubtitleWindow : Window {
         play.FontSize=15;
         StackPanel footer=new StackPanel();seekRail.Children.Add(seekTrack);seekRail.Children.Add(seekFill);seekRail.Children.Add(seekKnob);footer.Children.Add(controls);footer.Children.Add(seekRail);
         bottom.Child=footer;bottom.VerticalAlignment=VerticalAlignment.Bottom;bottom.Margin=new Thickness(7,0,7,2);bottom.Padding=new Thickness(2,0,2,0);bottom.BorderThickness=new Thickness(0);canvas.Children.Add(bottom);
+        ConfigureMoveBar(top);ConfigureMoveBar(bottom);
         idleTrack.Child=idleFill;canvas.Children.Add(idleTrack);
         System.Windows.Automation.AutomationProperties.SetName(seekRail,"视频播放进度");
         seekRail.SizeChanged+=delegate{UpdateProgress();};
@@ -252,8 +258,8 @@ internal sealed class SubtitleWindow : Window {
         header.Children.Add(new TextBlock {Text=title,FontFamily=new FontFamily("Georgia, SimSun"),FontSize=17,VerticalAlignment=VerticalAlignment.Center});frame.Children.Add(header);Grid.SetRow(body,1);frame.Children.Add(body);return frame;
     }
     void ArrangeSettings(){int columns=Width>=600?2:1;rateGrid.Columns=Width>=600?6:3;settingsGrid.ColumnDefinitions.Clear();settingsGrid.RowDefinitions.Clear();for(int c=0;c<columns;c++)settingsGrid.ColumnDefinitions.Add(new ColumnDefinition());for(int r=0;r<(settingsFields.Count+columns-1)/columns;r++)settingsGrid.RowDefinitions.Add(new RowDefinition {Height=GridLength.Auto});for(int i=0;i<settingsFields.Count;i++){Grid.SetColumn(settingsFields[i],i%columns);Grid.SetRow(settingsFields[i],i/columns);settingsFields[i].Margin=new Thickness(0,0,i%columns==columns-1?0:18,0);}}
-    void OpenPanel(Border panel){Reveal(true);settings.Visibility=ratePanel.Visibility=Visibility.Collapsed;panel.Visibility=Visibility.Visible;top.Visibility=bottom.Visibility=Visibility.Collapsed;if(panel==settings)settingsScroll.ScrollToTop();}
-    void ClosePanels(){settings.Visibility=ratePanel.Visibility=Visibility.Collapsed;if(showing)top.Visibility=bottom.Visibility=Visibility.Visible;}
+    void OpenPanel(Border panel){Reveal(true);settings.Visibility=ratePanel.Visibility=Visibility.Collapsed;panel.Visibility=Visibility.Visible;top.Visibility=bottom.Visibility=Visibility.Collapsed;if(panel==settings)settingsScroll.ScrollToTop();UpdateCaptionScrollbar();}
+    void ClosePanels(){settings.Visibility=ratePanel.Visibility=Visibility.Collapsed;if(showing)top.Visibility=bottom.Visibility=Visibility.Visible;UpdateCaptionScrollbar();}
     void UpdateRate(){rateButton.Content=currentRate.ToString("0.##")+"×";foreach(Button button in rateButtons)SelectOption(button,Math.Abs((double)button.Tag-currentRate)<0.01);}
     void SelectOption(Button button,bool selected){button.SetResourceReference(Control.ForegroundProperty,selected?"Accent":"ControlInk");button.SetResourceReference(Control.BackgroundProperty,selected?"SelectedSurface":"ControlSurface");button.FontWeight=selected?FontWeights.SemiBold:FontWeights.Normal;}
     void ChangeLayout(string value){if(layout==value)return;layout=value;RebuildCues();ApplyAppearance();SendAppearance();if(following)Dispatcher.BeginInvoke(new Action(Center),DispatcherPriority.Loaded);}
@@ -272,6 +278,58 @@ internal sealed class SubtitleWindow : Window {
         seekFill.Width=Math.Max(0,seekRail.ActualWidth*fraction);
         seekKnob.RenderTransform=new TranslateTransform(Math.Max(0,(seekRail.ActualWidth-6)*fraction),0);
         idleFill.Width=Math.Max(0,canvas.ActualWidth*(duration>0?Math.Max(0,Math.Min(1,seconds/duration)):0));
+    }
+    static DependencyObject ParentOf(DependencyObject node){return node is Visual?VisualTreeHelper.GetParent(node):LogicalTreeHelper.GetParent(node);}
+    bool IsMoveSurface(DependencyObject source,Border bar){
+        for(DependencyObject node=source;node!=null;node=ParentOf(node)){
+            if(node==seekRail||node is ButtonBase||node is Thumb||node is Slider)return false;
+            if(node==bar)return true;
+        }
+        return false;
+    }
+    void ConfigureMoveBar(Border bar){
+        bar.Cursor=Cursors.SizeAll;bar.ToolTip="拖动横栏空白处移动窗口；最外沿缩放";
+        bar.MouseLeftButtonDown+=delegate(object sender,MouseButtonEventArgs e){
+            if(!IsMoveSurface(e.OriginalSource as DependencyObject,bar))return;
+            e.Handled=true;try{DragMove();SaveGeometry();}catch(InvalidOperationException){}
+        };
+    }
+    void BuildCaptionScrollbar(){
+        FrameworkElementFactory hit=new FrameworkElementFactory(typeof(Grid));hit.SetValue(Panel.BackgroundProperty,Brushes.Transparent);
+        FrameworkElementFactory face=new FrameworkElementFactory(typeof(Border));face.Name="CaptionThumbFace";face.SetValue(Border.BackgroundProperty,new TemplateBindingExtension(Control.BackgroundProperty));face.SetValue(Border.WidthProperty,2.0);face.SetValue(Border.HorizontalAlignmentProperty,HorizontalAlignment.Center);face.SetValue(Border.CornerRadiusProperty,new CornerRadius(2));hit.AppendChild(face);
+        captionThumb.Template=new ControlTemplate(typeof(Thumb)){VisualTree=hit};
+        captionRail.Children.Add(captionTrack);captionRail.Children.Add(captionThumb);canvas.Children.Add(captionRail);
+        captionRail.MouseEnter+=delegate{railHover=true;StyleCaptionScrollbar();};captionRail.MouseLeave+=delegate{railHover=false;StyleCaptionScrollbar();};
+        captionThumb.MouseEnter+=delegate{thumbHover=true;StyleCaptionScrollbar();};captionThumb.MouseLeave+=delegate{thumbHover=false;StyleCaptionScrollbar();};
+        captionThumb.DragStarted+=delegate{following=false;follow.Visibility=Visibility.Visible;};
+        captionThumb.DragDelta+=delegate(object sender,DragDeltaEventArgs e){ScrollCaptionBy(e.VerticalChange);};
+        captionThumb.DragCompleted+=delegate{if(!IsMouseOver)Reveal(false);};
+        captionRail.MouseLeftButtonDown+=delegate(object sender,MouseButtonEventArgs e){
+            for(DependencyObject node=e.OriginalSource as DependencyObject;node!=null&&node!=captionRail;node=ParentOf(node))if(node==captionThumb)return;
+            following=false;follow.Visibility=Visibility.Visible;
+            double travel=Math.Max(1,captionRail.ActualHeight-captionThumb.Height);
+            scroll.ScrollToVerticalOffset((e.GetPosition(captionRail).Y-captionThumb.Height/2)/travel*scroll.ScrollableHeight);e.Handled=true;
+        };
+        scroll.ScrollChanged+=delegate{UpdateCaptionScrollbar();};captionRail.SizeChanged+=delegate{UpdateCaptionScrollbar();};
+        System.Windows.Automation.AutomationProperties.SetName(captionThumb,"字幕滚动位置");
+    }
+    void ScrollCaptionBy(double delta){
+        following=false;follow.Visibility=Visibility.Visible;
+        scroll.ScrollToVerticalOffset(scroll.VerticalOffset+delta/Math.Max(1,captionRail.ActualHeight-captionThumb.Height)*scroll.ScrollableHeight);
+    }
+    void StyleCaptionScrollbar(){
+        captionTrack.Width=railHover?4:2;
+        captionThumb.ApplyTemplate();Border face=captionThumb.Template.FindName("CaptionThumbFace",captionThumb) as Border;
+        if(face!=null){face.Width=thumbHover||captionThumb.IsDragging?7:railHover?4:2;face.Margin=new Thickness(0,thumbHover?-2:0,0,thumbHover?-2:0);}
+    }
+    void UpdateCaptionScrollbar(){
+        bool visible=showing&&settings.Visibility!=Visibility.Visible&&ratePanel.Visibility!=Visibility.Visible&&scroll.ScrollableHeight>.5;
+        captionRail.Visibility=visible?Visibility.Visible:Visibility.Collapsed;
+        if(!visible){railHover=thumbHover=false;StyleCaptionScrollbar();return;}
+        double height=captionRail.ActualHeight;
+        captionThumb.Height=Math.Max(0,Math.Min(height,Math.Max(20,height*scroll.ViewportHeight/Math.Max(1,scroll.ExtentHeight))));
+        captionThumb.Margin=new Thickness(0,Math.Max(0,height-captionThumb.Height)*scroll.VerticalOffset/Math.Max(1,scroll.ScrollableHeight),0,0);
+        StyleCaptionScrollbar();
     }
     void BuildGrips() {
         foreach(string edge in new string[]{"n","s","e","w","ne","nw","se","sw"}) {
@@ -299,10 +357,8 @@ internal sealed class SubtitleWindow : Window {
         showing=visible;top.Visibility=bottom.Visibility=visible && settings.Visibility!=Visibility.Visible && ratePanel.Visibility!=Visibility.Visible?Visibility.Visible:Visibility.Collapsed;
         if(!visible)settings.Visibility=ratePanel.Visibility=Visibility.Collapsed;
         foreach(Thumb grip in grips)grip.Visibility=visible?Visibility.Visible:Visibility.Collapsed;
-        // 仅工具栏显示时避让；移出即回收全部高度，不保留空白栏。
-        scroll.Margin=new Thickness(8,visible?26:2,8,visible?38:3);
-        scroll.VerticalScrollBarVisibility=visible?ScrollBarVisibility.Auto:ScrollBarVisibility.Hidden;
-        if(following)Dispatcher.BeginInvoke(new Action(Center),DispatcherPriority.Loaded);
+        // 工具栏和细线滚动条覆盖字幕，保持视口、换行宽度和滚动位置。
+        UpdateCaptionScrollbar();
     }
     void ApplyAppearance() {
         bool dark=theme=="night";
@@ -318,6 +374,8 @@ internal sealed class SubtitleWindow : Window {
         clock.Foreground=timeInk;seekFill.Background=seekKnob.Background=idleFill.Background=timeInk;
         seekTrack.Background=rule;idleTrack.Background=new SolidColorBrush(dark?Color.FromArgb(90,200,200,200):Color.FromArgb(70,70,70,70));
         Resources["ControlHover"]=Resources["SelectedSurface"]=new SolidColorBrush(dark?Color.FromRgb(58,48,41):Color.FromRgb(236,226,216));
+        captionTrack.Background=new SolidColorBrush(dark?Color.FromRgb(111,106,97):Color.FromRgb(174,166,153));
+        captionThumb.Background=new SolidColorBrush(dark?Color.FromRgb(224,156,99):Color.FromRgb(184,107,57));
         top.Background=bottom.Background=settings.Background=ratePanel.Background=panel;
         top.BorderBrush=bottom.BorderBrush=settings.BorderBrush=ratePanel.BorderBrush=rule;
         Foreground=text.Foreground=ink;
@@ -515,7 +573,7 @@ internal sealed class SubtitleWindow : Window {
         Apply(Program.Json.DeserializeObject(sample) as Dictionary<string,object>);Reveal(false);FlushLayout();
         double idleHeight=scroll.ActualHeight;Capture(Path.Combine(dir,"native-idle.png"));
         Reveal(true);FlushLayout();double hoverHeight=scroll.ActualHeight;Capture(Path.Combine(dir,"native-hover.png"));
-        if(hoverHeight>=idleHeight || idleHeight<Height-10)throw new Exception("字幕区未按工具栏可见性回收空间");
+        if(Math.Abs(hoverHeight-idleHeight)>.01 || idleHeight<Height-10)throw new Exception("悬停改变了字幕视口高度");
         transparency=100;ApplyAppearance();Reveal(false);RenderTargetBitmap transparentImage=Capture(Path.Combine(dir,"native-transparent.png"));
         if(Math.Abs(scroll.ActualHeight-idleHeight)>1)throw new Exception("工具栏收起后未恢复全部字幕空间");
         byte[] pixel=new byte[4];transparentImage.CopyPixels(new Int32Rect(400,160,1,1),pixel,4,0);
@@ -572,7 +630,67 @@ internal sealed class SubtitleWindow : Window {
         File.WriteAllText(Path.Combine(dir,"native-checks.json"),Program.Json.Serialize(new {kind="isolated-native-offscreen",layered=true,topmost=true,allowsTransparency=AllowsTransparency,idleSubtitleHeight=idleHeight,hoverSubtitleHeight=hoverHeight,windowHeight=Height,backgroundAlphaAt100=color.A,renderedBackgroundAlpha=pixel[3],foregroundAlpha=((SolidColorBrush)text.Foreground).Color.A,followedScroll=followed,activeYInViewport=activeRect.Top-followed,longTextCharacters=longText.Length,longTextHeight=measuredLongTextHeight,checks=new[]{"real HWND layered and topmost styles","full-frame idle captions restored after toolbar hides","rendered transparent alpha independent of text","native long text wrap and no truncation","formatted geometry matches actual text height","manual scrolling not overridden","play rate appearance commands","native window only rendering, no desktop capture"}}));
         ReadabilityTest(dir);
         ProgressTest(dir);
+        HoverStabilityTest(dir);
+        ChromeInteractionTest(dir);
         string oldError=Path.Combine(dir,"native-test-error.txt");if(File.Exists(oldError))File.Delete(oldError);
+    }
+    void ChromeInteractionTest(string dir){
+        Width=760;Height=192;ClosePanels();Reveal(true);FlushLayout();UpdateCaptionScrollbar();FlushLayout();
+        foreach(double x in new double[]{30,380,650}){
+            var hit=canvas.InputHitTest(new Point(x,14)) as DependencyObject;
+            if(!IsMoveSurface(hit,top))throw new Exception("顶部横栏拖动区域不完整");
+        }
+        foreach(double x in new double[]{30,730}){
+            var hit=canvas.InputHitTest(new Point(x,Height-bottom.ActualHeight+8)) as DependencyObject;
+            if(!IsMoveSurface(hit,bottom))throw new Exception("底部横栏不能拖动");
+        }
+        if(IsMoveSurface(play,bottom)||IsMoveSurface(seekRail,bottom)||top.Cursor!=Cursors.SizeAll||bottom.Cursor!=Cursors.SizeAll)throw new Exception("移动横栏抢占了播放控件");
+        foreach(double y in new double[]{1,Height-1}){
+            DependencyObject hit=canvas.InputHitTest(new Point(380,y)) as DependencyObject;
+            while(hit!=null&&!(hit is Thumb))hit=ParentOf(hit);
+            if(hit==null||((Thumb)hit).Cursor!=Cursors.SizeNS)throw new Exception("上下边缘缩放失效");
+        }
+        if(captionRail.Visibility!=Visibility.Visible)throw new Exception("长字幕没有显示细线滚动条");
+        Border face=captionThumb.Template.FindName("CaptionThumbFace",captionThumb) as Border;
+        railHover=thumbHover=false;StyleCaptionScrollbar();FlushLayout();
+        if(captionTrack.Width!=2||face.Width!=2)throw new Exception("默认细线样式不正确");Capture(Path.Combine(dir,"scrollbar-normal.png"));
+        captionRail.RaiseEvent(new MouseEventArgs(Mouse.PrimaryDevice,0){RoutedEvent=Mouse.MouseEnterEvent});FlushLayout();
+        if(captionTrack.Width!=4||face.Width!=4)throw new Exception("轨道悬停未加粗");Capture(Path.Combine(dir,"scrollbar-track-hover.png"));
+        captionThumb.RaiseEvent(new MouseEventArgs(Mouse.PrimaryDevice,0){RoutedEvent=Mouse.MouseEnterEvent});FlushLayout();
+        if(face.Width!=7||face.Margin.Top!=-2)throw new Exception("滑块悬停未二次放大");Capture(Path.Combine(dir,"scrollbar-thumb-hover.png"));
+        double before=scroll.VerticalOffset;
+        captionThumb.RaiseEvent(new DragDeltaEventArgs(0,10){RoutedEvent=Thumb.DragDeltaEvent});FlushLayout();
+        if(scroll.VerticalOffset<=before||following)throw new Exception("拖动滑块未手动滚动字幕");
+        ScrollCaptionBy(99999);FlushLayout();if(Math.Abs(scroll.VerticalOffset-scroll.ScrollableHeight)>.1)throw new Exception("字幕滚动下界不正确");
+        ScrollCaptionBy(-99999);FlushLayout();if(scroll.VerticalOffset!=0)throw new Exception("字幕滚动上界不正确");
+        OpenPanel(settings);FlushLayout();if(captionRail.Visibility!=Visibility.Collapsed)throw new Exception("滚动条覆盖了设置面板");ClosePanels();
+        Reveal(false);FlushLayout();if(captionRail.Visibility!=Visibility.Collapsed)throw new Exception("移出后滚动条未隐藏");
+        File.WriteAllText(Path.Combine(dir,"chrome-interaction-checks.json"),Program.Json.Serialize(new{topDragLeftCenterRight=true,bottomDragBothSides=true,controlsExcluded=true,topBottomResize=true,trackWidths=new[]{2,4,4},thumbWidths=new[]{2,4,7},thumbHoverExtraHeight=4,thumbDrag=true,scrollLimits=true,settingsAndIdleHideRail=true}));
+    }
+    void HoverStabilityTest(string dir) {
+        ClosePanels();Height=192;
+        var samples=new List<object>();
+        for(int i=0;i<48;i++)samples.Add(new Dictionary<string,object>{{"start",i*10},{"end",i*10+10},{"text","字幕 "+i+"：这是用于验证悬停稳定性的长句，鼠标移入后文字应该保持原来的位置和换行。"}});
+        var results=new List<object>();
+        foreach(double width in new double[]{760,360})foreach(string mode in new string[]{"flow","lines"})foreach(bool auto in new bool[]{true,false}){
+            Width=width;following=true;
+            Apply(new Dictionary<string,object>{{"type","state"},{"cues",samples.ToArray()},{"index",24},{"layout",mode},{"theme","paper"},{"fontSize",20},{"captionOpacity",90},{"time",245}});
+            Reveal(false);FlushLayout();Center();FlushLayout();following=auto;
+            if(!auto){scroll.ScrollToVerticalOffset(120);FlushLayout();}
+            double w=scroll.ViewportWidth,h=scroll.ViewportHeight,offset=scroll.VerticalOffset,tw=text.ActualWidth,th=text.ActualHeight;
+            Point position=text.TranslatePoint(CueBounds(active).TopLeft,canvas);
+            bool capture=width==760&&mode=="flow"&&auto;
+            if(capture)Capture(Path.Combine(dir,"hover-stability-idle.png"));
+            for(int pass=0;pass<6;pass++){
+                Reveal(pass%2==0);FlushLayout();
+                Apply(new Dictionary<string,object>{{"type","state"},{"time",245+pass*.1}});FlushLayout();
+                Point now=text.TranslatePoint(CueBounds(active).TopLeft,canvas);
+                if(Math.Abs(w-scroll.ViewportWidth)>.01||Math.Abs(h-scroll.ViewportHeight)>.01||Math.Abs(offset-scroll.VerticalOffset)>.01||Math.Abs(tw-text.ActualWidth)>.01||Math.Abs(th-text.ActualHeight)>.01||(now-position).Length>.01)throw new Exception("鼠标移入移出改变了字幕坐标或换行");
+                if(capture&&pass==0)Capture(Path.Combine(dir,"hover-stability-hover.png"));
+            }
+            results.Add(new{width,layout=mode,following=auto,viewportWidth=w,viewportHeight=h,scrollOffset=offset,stable=true});
+        }
+        File.WriteAllText(Path.Combine(dir,"hover-stability-checks.json"),Program.Json.Serialize(new{cases=results,captionUpDown=true,settingsKeysIsolated=true}));
     }
     void ProgressTest(string dir) {
         ClosePanels();Width=760;Height=192;following=true;
@@ -600,10 +718,15 @@ internal sealed class SubtitleWindow : Window {
         BeginSeek();PreviewSeek(-50);if(previewTime!=0)throw new Exception("拖动左边界错误");PreviewSeek(seekRail.ActualWidth+50);if(previewTime!=duration)throw new Exception("拖动右边界错误");FinishSeek(false);
         BeginSeek();Apply(new Dictionary<string,object>{{"type","state"},{"videoKey","sample-b"},{"time",0}});if(scrubbing)throw new Exception("换视频后仍在拖动");
         Apply(new Dictionary<string,object>{{"type","state"},{"duration",0}});BeginSeek();if(scrubbing||seekRail.IsEnabled)throw new Exception("未知时长仍可拖动");
-        foreach(Key key in new Key[]{Key.Space,Key.Left,Key.Right}){
+        foreach(Key key in new Key[]{Key.Space,Key.Left,Key.Right,Key.Up,Key.Down}){
             KeyEventArgs e=new KeyEventArgs(Keyboard.PrimaryDevice,PresentationSource.FromVisual(text),0,key){RoutedEvent=Keyboard.PreviewKeyDownEvent};text.RaiseEvent(e);
             command=Program.Json.Serialize(Program.LastTestMessage);
-            if(!e.Handled||!command.Contains(key==Key.Space?"\"toggle\"":"\"seekBy\""))throw new Exception("字幕区快捷键失败");
+            if(!e.Handled||!command.Contains(key==Key.Space?"\"toggle\"":key==Key.Up||key==Key.Down?"\"volumeBy\"":"\"seekBy\""))throw new Exception("字幕区快捷键失败");
+        }
+        foreach(Key key in new Key[]{Key.Up,Key.Down}){
+            object last=Program.LastTestMessage;
+            font.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice,PresentationSource.FromVisual(font),0,key){RoutedEvent=Keyboard.PreviewKeyDownEvent});
+            if(Program.LastTestMessage!=last)throw new Exception("设置滑块错误触发播放快捷键");
         }
         seekStep.Value=15;if(!Program.Json.Serialize(Program.LastTestMessage).Contains("\"step\":15"))throw new Exception("步长未回传");
         Apply(new Dictionary<string,object>{{"type","state"},{"duration",1800},{"time",683},{"theme","night"}});Reveal(true);FlushLayout();UpdateProgress();Capture(Path.Combine(dir,"native-v7-dark.png"));

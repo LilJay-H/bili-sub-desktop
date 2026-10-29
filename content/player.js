@@ -145,6 +145,15 @@
     seekTo(getTime() + delta);
   }
 
+  // 音量按总范围的百分点调节；静音时从 0 开始，调高即解除静音。
+  function volumeBy(delta) {
+    if (!Number.isFinite(delta) || Math.abs(delta) > 1) throw new Error("音量调整无效。");
+    const current = requireVideo();
+    const base = current.muted ? 0 : current.volume;
+    current.volume = Math.max(0, Math.min(1, Math.round((base + delta) * 100) / 100));
+    if (delta > 0) current.muted = false;
+  }
+
   function setRate(rate) {
     const number = Number(rate);
     if (!Number.isFinite(number) || number < 0.25 || number > 4) throw new Error("请选择 0.25 到 4 倍之间的播放速度。");
@@ -239,7 +248,7 @@
   refresh();
 
   namespace.player = {
-    play, pause, toggle, seekBy, seekTo, setRate, getRate, getTime, getDuration, isPaused,
+    play, pause, toggle, seekBy, seekTo, volumeBy, setRate, getRate, getTime, getDuration, isPaused,
     prev: () => navigate(-1),
     next: () => navigate(1),
     onTime: callback => subscribe(timeListeners, callback, getTime),
