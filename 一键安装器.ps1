@@ -1,4 +1,6 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = New-Object Text.UTF8Encoding($false)
+Write-Host '正在安装 B站字幕桌面助手……'
 
 # 只登记随包的 Native Messaging 宿主，然后打开浏览器扩展管理页。
 # 不扫描浏览器资料，不读取账号信息，也不会自动改动 B 站页面。
@@ -9,6 +11,7 @@ if (-not (Test-Path -LiteralPath $installScript)) {
 }
 
 & $installScript
+Write-Host '桌面助手已安装。已加载扩展的用户，请刷新 B站视频页，再点击“桌面置顶”。'
 
 $browserPath = $null
 $runningChrome = Get-Process -Name chrome -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -22,15 +25,15 @@ $extensionPage = if ($runningChrome) {
 } else {
     $chromePath = Join-Path $env:ProgramFiles 'Google\Chrome\Application\chrome.exe'
     $edgePath = Join-Path $env:ProgramFiles 'Microsoft\Edge\Application\msedge.exe'
+    $edgeX86Path = if (${env:ProgramFiles(x86)}) { Join-Path ${env:ProgramFiles(x86)} 'Microsoft\Edge\Application\msedge.exe' }
+    $chromeX86Path = if (${env:ProgramFiles(x86)}) { Join-Path ${env:ProgramFiles(x86)} 'Google\Chrome\Application\chrome.exe' }
     $chromeLocalPath = Join-Path $env:LOCALAPPDATA 'Google\Chrome\Application\chrome.exe'
     $edgeLocalPath = Join-Path $env:LOCALAPPDATA 'Microsoft\Edge\Application\msedge.exe'
-    $browserPath = @($chromePath, $chromeLocalPath, $edgePath, $edgeLocalPath) |
-        Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+    $browserPath = @($chromePath, $chromeLocalPath, $chromeX86Path, $edgePath, $edgeLocalPath, $edgeX86Path) |
+        Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -First 1
     if ($browserPath) {
         if ($browserPath -match '\\Edge\\') { 'edge://extensions/' } else { 'chrome://extensions/' }
-        $null
     } else {
-        Start-Process (Join-Path $root '请先看教程-一键安装与使用.html')
         $null
     }
 }
@@ -44,9 +47,11 @@ if ($extensionPage) {
         } else {
             Start-Process -FilePath 'chrome.exe' -ArgumentList $extensionPage
         }
+        Write-Host '已请求打开扩展管理页。首次安装请开启开发者模式，加载以下文件夹：'
+        Write-Host $root
     } catch {
-        Start-Process (Join-Path $root '请先看教程-一键安装与使用.html')
+        Write-Host '助手已安装。请手动打开 chrome://extensions/ 或 edge://extensions/ 加载扩展。'
     }
+} else {
+    Write-Host '助手已安装。请手动打开 Chrome 或 Edge 的扩展管理页加载扩展。'
 }
-
-Write-Host '透明桌面助手登记完成。扩展管理页已经打开；请加载当前解压目录。'
