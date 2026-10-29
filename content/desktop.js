@@ -27,7 +27,8 @@
       sentRevision=revision;
     }
     const index=anchor>=windowStart && anchor-windowStart<windowCues.length && time<cues[anchor].end ? anchor-windowStart : -1;
-    const payload={type:'state',time,paused:!!player.isPaused(),rate:player.getRate(),...appearance,status:(domLine||status).slice(0,500),source:source.slice(0,500),index};
+    const duration=player.getDuration?.()||0;
+    const payload={type:'state',time,duration,videoKey:String(player.getVideoInfo?.().key||'').slice(0,500),paused:!!player.isPaused(),rate:player.getRate(),...appearance,status:(domLine||status).slice(0,500),source:source.slice(0,500),index};
     if(refresh)payload.cues=windowCues;
     post('state',payload);
   }

@@ -9,7 +9,7 @@
   function cleanState(value) {
     if (!value || value.type !== 'state') return null;
     const result = { type: 'state' };
-    const numeric = { time:[0,1e9], rate:[0.25,4], step:[1,120], fontSize:[12,32], transparency:[0,100], captionOpacity:[0,100], index:[-1,119] };
+    const numeric = { time:[0,1e9], duration:[0,1e9], rate:[0.25,4], step:[1,120], fontSize:[12,32], transparency:[0,100], captionOpacity:[0,100], index:[-1,119] };
     for (const [key, range] of Object.entries(numeric)) {
       if (!own(value, key)) continue;
       if (!number(value[key], ...range) || (key === 'index' && !Number.isInteger(value[key]))) return null;
@@ -18,7 +18,7 @@
     if (own(value, 'paused')) { if (typeof value.paused !== 'boolean') return null; result.paused = value.paused; }
     if (own(value, 'theme')) { if (!['paper','night'].includes(value.theme)) return null; result.theme = value.theme; }
     if (own(value, 'layout')) { if (!['flow','lines'].includes(value.layout)) return null; result.layout = value.layout; }
-    for (const key of ['status','source']) {
+    for (const key of ['status','source','videoKey']) {
       if (!own(value, key)) continue;
       if (typeof value[key] !== 'string' || value[key].length > 500) return null;
       result[key] = value[key];
@@ -46,7 +46,7 @@
     if (ranges[action]) return number(value.value, ...ranges[action]) ? { type:'command', action, value:value.value } : null;
     if (action !== 'appearance') return null;
     const result = { type:'command', action };
-    for (const [key, range] of Object.entries({fontSize:[12,32],transparency:[0,100],captionOpacity:[0,100]})) {
+    for (const [key, range] of Object.entries({fontSize:[12,32],transparency:[0,100],captionOpacity:[0,100],step:[1,120]})) {
       if (!own(value,key)) continue;
       if (!number(value[key],...range)) return null;
       result[key] = value[key];

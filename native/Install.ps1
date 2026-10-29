@@ -60,4 +60,4 @@ foreach ($browser in @('Google\Chrome','Microsoft\Edge')) {
 }
 Write-Host "固定扩展 ID：$extensionId"
 Write-Host '本地透明窗口已登记到当前用户的 Chrome / Edge。无需输入 ID，无需管理员权限。'
-Write-Host '请重新加载扩展并刷新视频页，再点击“桌面置顶”。此文件夹须保留。'
+Write-Host '请重新加载扩展并刷新视频页，全局字幕将自动打开。此文件夹须保留。'

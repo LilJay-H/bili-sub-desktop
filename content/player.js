@@ -115,6 +115,7 @@
   }
 
   function getTime() { return Number.isFinite(video?.currentTime) ? video.currentTime : 0; }
+  function getDuration() { return Number.isFinite(video?.duration) && video.duration > 0 ? video.duration : 0; }
   function getRate() { return Number.isFinite(video?.playbackRate) ? video.playbackRate : 1; }
   function isPaused() { return !video || video.paused; }
 
@@ -238,7 +239,7 @@
   refresh();
 
   namespace.player = {
-    play, pause, toggle, seekBy, seekTo, setRate, getRate, getTime, isPaused,
+    play, pause, toggle, seekBy, seekTo, setRate, getRate, getTime, getDuration, isPaused,
     prev: () => navigate(-1),
     next: () => navigate(1),
     onTime: callback => subscribe(timeListeners, callback, getTime),

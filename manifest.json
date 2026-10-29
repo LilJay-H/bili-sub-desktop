@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "B站字幕桌面歌词 Demo",
-  "version": "0.6.2",
+  "version": "0.7.0",
   "description": "在置顶歌词卡中查看 B 站字幕并控制播放，仅个人本地使用。",
   "minimum_chrome_version": "116",
   "host_permissions": [
@@ -33,7 +33,6 @@
         "content/subtitle.js",
         "content/player.js",
         "content/desktop.js",
-        "content/overlay-style.js",
         "content/overlay.js",
         "content/main.js"
       ],

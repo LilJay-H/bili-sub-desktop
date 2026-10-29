@@ -1,29 +1,6 @@
-<!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>B 站字幕 · 离线 UI 自测</title>
-<style>body{font:16px/1.8 system-ui;background:#e9eef1;color:#1c3040;max-width:700px;padding:40px}button{padding:8px 13px;margin:5px}code{background:#fff;padding:3px}h1{font-size:27px}</style></head>
-<body><h1>字幕歌词卡 · 假数据自测</h1><p>此页面不连接 B 站，不读取账号。右下角的字幕卡使用假播放器。假时钟只用于 UI 自测，正式版使用视频事件。</p>
-<p>默认只显示字幕。移入后拖顶部移动、拖边框缩放，也可以播放、置顶和设置外观；离开后所有控件隐藏，字幕占满整个框。18px 连续文本允许多句同一行，窗口默认全透，所有字幕默认90%不透明底色、当前句下划线。透明桌面置顶由另行安装的本地助手提供，此离线页不启动助手。</p>
-<button id="empty">模拟无字幕</button><button id="dom">模拟 DOM 兜底</button><button id="full">恢复完整字幕</button><pre id="state"></pre>
-<script src="../content/overlay-style.js"></script><script src="../content/overlay.js"></script><script>
-  let t = 0, paused = false, rate = 1, episode = 1, previous = performance.now();
-  const O = window.BiliSub.overlay;
-  const data = [
-    {start:0,end:4,text:'把视频放在后台，也能跟上谈话。'},
-    {start:4,end:8,text:'把注意力留给内容，字幕轻轻跟随。'},
-    {start:8,end:12,text:'点击任何一句，就能回到对应的时间。'},
-    {start:14,end:18,text:'刚才两秒是字幕间隔，不应错误高亮上一句。'},
-    {start:18,end:23,text:'暂停、快进、倍速都在这里，不必找回视频窗口。'},
-    {start:23,end:28,text:'拖动顶部移动位置，拖动边框调整大小。'},
-    {start:28,end:33,text:'桌面透明置顶由本地 Windows 助手提供。'},
-    {start:33,end:39,text:'关闭桌面窗口后，字幕回到原页面。'},
-    {start:39,end:45,text:'刷新页面后，请重新点击置顶按钮。'},
-    {start:45,end:51,text:'这是离线模拟字幕，不代表真实 B 站验收通过。'}
-  ];
-  function full(){O.setCues(data);O.setDebug({source:'api（假数据）',lang:'zh-CN'});O.setStatus('离线模拟 · 第 '+episode+' 集');}
-  const P = {play(){paused=false},pause(){paused=true},toggle(){paused=!paused},seekBy(d){t=Math.max(0,Math.min(51,t+d));O.setCurrentTime(t)},seekTo(v){t=v;O.setCurrentTime(t)},setRate(r){rate=r},getRate(){return rate},getTime(){return t},isPaused(){return paused},prev(){if(episode===1)throw Error('已经是第一集');episode--;t=0;full()},next(){episode++;t=0;full()}};
-  O.mount(P);full();
-  document.querySelector('#empty').onclick=()=>{O.setCues([]);O.setDebug({source:'api',lang:''});O.setStatus('此视频没有可用字幕。');};
-  document.querySelector('#dom').onclick=()=>{O.setCues([]);O.setDebug({source:'dom',lang:''});O.setCurrentLine('这是播放器当前一句字幕。');O.setStatus('仅当前句模式，无法显示完整上下文。');};
-  document.querySelector('#full').onclick=full;
-  setInterval(()=>{const now=performance.now();if(!paused)t=Math.min(51,t+(now-previous)/1000*rate);previous=now;O.setCurrentTime(t);document.querySelector('#state').textContent=JSON.stringify({time:t.toFixed(1),paused,rate,episode},null,2)},100);
-</script></body></html>
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>全局字幕启动入口自测</title>
+<body style="background:#f7f4ed;color:#24221e;font:16px/1.6 'Microsoft YaHei',sans-serif;padding:24px"><h1>全局字幕启动入口自测</h1><p>此页面模拟桌面握手与失败重试，不启动真实桌面程序。原生窗口布局由 native/Test.cjs 验证。</p>
+<script>
+window.demo={attempts:0,fail:false,callbacks:null,states:[]};
+window.BiliSub={desktop:{mount(p,cb){demo.callbacks=cb},async open(){demo.attempts++;if(demo.fail)throw Error('桌面助手未安装，请运行一键安装器后重试。');demo.callbacks.onOpen()},setAppearance(v){demo.states.push(v)},setCues(){},setCurrentTime(){},setStatus(){},setCurrentLine(){},setSource(){}}};
+</script><script src="../content/overlay.js"></script><script>BiliSub.overlay.mount({});</script></body></html>

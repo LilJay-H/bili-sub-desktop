@@ -11,7 +11,7 @@ if (-not (Test-Path -LiteralPath $installScript)) {
 }
 
 & $installScript
-Write-Host '桌面助手已安装。已加载扩展的用户，请刷新 B站视频页，再点击“桌面置顶”。'
+Write-Host '桌面助手已安装。已加载扩展的用户，请刷新 B站视频页，全局字幕将自动打开。'
 
 $browserPath = $null
 $runningChrome = Get-Process -Name chrome -ErrorAction SilentlyContinue | Select-Object -First 1

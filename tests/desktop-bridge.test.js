@@ -43,10 +43,11 @@ test('native bridge 拒绝其他来源和第二个活动页面，不增加宿主
 });
 test('native bridge state 只保留字幕和播放字段，限制长度/数值/索引',()=>{
   const env=background(),client=env.open(),native=env.connections[0].p;
-  const good={type:'state',time:7,paused:false,rate:1,step:10,fontSize:18,transparency:95,captionOpacity:90,theme:'paper',layout:'flow',source:'api',status:'已载入',index:0,cues:[{start:1,end:9,text:'字幕',path:'unexpected'}],execute:'not allowed'};
+  const good={type:'state',time:7,duration:500,videoKey:'BVtest:1',paused:false,rate:1,step:10,fontSize:18,transparency:95,captionOpacity:90,theme:'paper',layout:'flow',source:'api',status:'已载入',index:0,cues:[{start:1,end:9,text:'字幕',path:'unexpected'}],execute:'not allowed'};
   client.onMessage.emit(good);
   const sent=native.sent[0];assert.equal(sent.execute,undefined);assert.equal(sent.cues[0].path,undefined);assert.equal(sent.cues[0].text,'字幕');assert.equal(sent.layout,'flow');assert.equal(sent.captionOpacity,90);
-  const invalid=[{...good,time:NaN},{...good,index:1},{...good,cues:[{start:1,end:0,text:'错'}]},
+  assert.equal(sent.duration,500);assert.equal(sent.videoKey,'BVtest:1');
+  const invalid=[{...good,duration:Infinity},{...good,duration:-1},{...good,videoKey:4},{...good,time:NaN},{...good,index:1},{...good,cues:[{start:1,end:0,text:'错'}]},
     {...good,cues:[{start:1,end:9,text:'长'.repeat(5001)}]},{...good,cues:Array(121).fill(good.cues[0])},
     {...good,theme:'url(path)'},{...good,layout:'invalid'},{...good,fontSize:400},{...good,captionOpacity:101},{type:'execute',command:'not allowed'}];
   client.onMessage.emit({type:'state',time:8,index:0});assert.equal(native.sent.length,2);

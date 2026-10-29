@@ -83,6 +83,12 @@ internal sealed class SubtitleWindow : Window {
     readonly CaptionBackdrop captionBackdrop = new CaptionBackdrop {IsHitTestVisible=false};
     readonly Border top = new Border(), bottom = new Border(), settings = new Border(), ratePanel = new Border();
     readonly TextBlock clock = new TextBlock(), status = new TextBlock();
+    readonly Grid seekRail = new Grid {Height=12,Background=Brushes.Transparent,Focusable=true,Cursor=Cursors.Hand};
+    readonly Border seekTrack = new Border {Height=2,VerticalAlignment=VerticalAlignment.Center};
+    readonly Border seekFill = new Border {Height=2,HorizontalAlignment=HorizontalAlignment.Left,VerticalAlignment=VerticalAlignment.Center};
+    readonly Border seekKnob = new Border {Width=6,Height=6,CornerRadius=new CornerRadius(3),HorizontalAlignment=HorizontalAlignment.Left,VerticalAlignment=VerticalAlignment.Center};
+    readonly Border idleTrack = new Border {Height=2,VerticalAlignment=VerticalAlignment.Bottom,IsHitTestVisible=false};
+    readonly Border idleFill = new Border {HorizontalAlignment=HorizontalAlignment.Left};
     readonly List<Hyperlink> lines = new List<Hyperlink>();
     readonly List<double> starts = new List<double>();
     readonly List<int> offsets = new List<int>(), lengths = new List<int>();
@@ -103,11 +109,14 @@ internal sealed class SubtitleWindow : Window {
     readonly List<FrameworkElement> settingsFields = new List<FrameworkElement>();
     readonly List<Dictionary<string,object>> cueData = new List<Dictionary<string,object>>();
     Button backward, forward;
-    readonly Slider alpha = new Slider(), font = new Slider(), captionAlpha = new Slider();
-    readonly TextBlock alphaLabel = new TextBlock(), fontLabel = new TextBlock(), captionAlphaLabel = new TextBlock();
+    readonly Slider alpha = new Slider(), font = new Slider(), captionAlpha = new Slider(), seekStep = new Slider();
+    readonly TextBlock alphaLabel = new TextBlock(), fontLabel = new TextBlock(), captionAlphaLabel = new TextBlock(), stepLabel = new TextBlock();
     readonly TextBlock diagnostics = new TextBlock {FontSize=10,TextWrapping=TextWrapping.Wrap};
     int active=-1;
     double seconds, step=10, transparency=100, captionOpacity=90, fontSize=18, currentRate=1;
+    double duration, previewTime;
+    bool scrubbing;
+    string videoKey="";
     bool applying, following=true, showing, isClosed;
     string theme="paper", layout="flow", lastStatus="";
     readonly string preferencePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "BiliSubDesktop", "window.json");
@@ -123,13 +132,18 @@ internal sealed class SubtitleWindow : Window {
         Content=canvas;
         scroll.Margin=new Thickness(10,4,10,4);scroll.VerticalScrollBarVisibility=ScrollBarVisibility.Hidden;scroll.HorizontalScrollBarVisibility=ScrollBarVisibility.Disabled;
         text.TextWrapping=TextWrapping.Wrap;text.LineHeight=30;text.Padding=new Thickness(1,0,1,0);
+        text.Focusable=true;
+        text.PreviewMouseLeftButtonDown+=delegate {text.Focus();};
+        scroll.Background=Brushes.Transparent;
+        scroll.MouseLeftButtonDown+=delegate {text.Focus();};
+        text.PreviewKeyDown+=delegate(object sender,KeyEventArgs e){if(CaptionKey(e.Key,e.IsRepeat))e.Handled=true;};
         Grid textLayer=new Grid();textLayer.Children.Add(captionBackdrop);textLayer.Children.Add(text);scroll.Content=textLayer;canvas.Children.Add(scroll);
         captionBackdrop.Shape=PlateGeometry;text.SizeChanged+=delegate{captionBackdrop.InvalidateVisual();};
         scroll.PreviewMouseWheel += delegate {following=false;follow.Visibility=Visibility.Visible;};
         BuildControlStyle();BuildChrome();BuildGrips();ApplyAppearance();Reveal(false);
         canvas.MouseEnter += delegate {Reveal(true);};
-        canvas.MouseLeave += delegate {if(!IsMouseOver && !grips.Exists(g=>g.IsDragging))Reveal(false);};
-        SizeChanged += delegate { ArrangeSettings();if(following) Dispatcher.BeginInvoke(new Action(Center),DispatcherPriority.Loaded); };
+        canvas.MouseLeave += delegate {if(!IsMouseOver && !scrubbing && !grips.Exists(g=>g.IsDragging))Reveal(false);};
+        SizeChanged += delegate { ArrangeSettings();UpdateProgress();if(following) Dispatcher.BeginInvoke(new Action(Center),DispatcherPriority.Loaded); };
         PreviewKeyDown += delegate(object sender,KeyEventArgs e) {
             if(e.Key==Key.Tab)Reveal(true);
             if(e.Key==Key.Escape){if(settings.Visibility==Visibility.Visible||ratePanel.Visibility==Visibility.Visible){ClosePanels();rateButton.Focus();}else Reveal(false);e.Handled=true;}
@@ -165,15 +179,22 @@ internal sealed class SubtitleWindow : Window {
         style.Setters.Add(new Setter(Control.TemplateProperty,template));Resources[typeof(Button)]=style;
     }
     void Command(string action, double value) {Program.Send(new {type="command",action=action,value=value});}
+    bool CaptionKey(Key key,bool repeat) {
+        if(Keyboard.Modifiers!=ModifierKeys.None)return false;
+        if(key==Key.Space){if(!repeat)Command("toggle",0);return true;}
+        if(key==Key.Left||key==Key.Right){Command("seekBy",key==Key.Left?-step:step);return true;}
+        return false;
+    }
     void BuildChrome() {
-        DockPanel header=new DockPanel {LastChildFill=true};
-        Button close=MakeButton("↙ 页内",delegate{SaveGeometry();Command("close",0);Close();});close.ToolTip="回到页内字幕";DockPanel.SetDock(close,Dock.Right);header.Children.Add(close);
-        clock.FontSize=11;clock.VerticalAlignment=VerticalAlignment.Center;clock.Margin=new Thickness(6,0,9,0);DockPanel.SetDock(clock,Dock.Right);header.Children.Add(clock);
-        follow.Content="跟随播放";follow.FontSize=11;follow.Margin=new Thickness(3,0,3,0);follow.Click+=delegate{following=true;follow.Visibility=Visibility.Collapsed;Center();};follow.Visibility=Visibility.Collapsed;DockPanel.SetDock(follow,Dock.Right);header.Children.Add(follow);
+        Grid header=new Grid();header.ColumnDefinitions.Add(new ColumnDefinition());header.ColumnDefinitions.Add(new ColumnDefinition {Width=new GridLength(100)});header.ColumnDefinitions.Add(new ColumnDefinition());
+        StackPanel right=new StackPanel {Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Right};Grid.SetColumn(right,2);header.Children.Add(right);
+        Button close=MakeButton("×",delegate{SaveGeometry();Command("close",0);Close();});close.ToolTip="关闭全局字幕";close.MinHeight=20;close.Padding=new Thickness(6,0,6,0);
+        follow.Content="跟随播放";follow.FontSize=10;follow.MinHeight=20;follow.Padding=new Thickness(3,0,3,0);follow.Click+=delegate{following=true;follow.Visibility=Visibility.Collapsed;Center();};follow.Visibility=Visibility.Collapsed;right.Children.Add(follow);right.Children.Add(close);
+        clock.FontSize=14;clock.FontWeight=FontWeights.Bold;clock.VerticalAlignment=VerticalAlignment.Center;clock.HorizontalAlignment=HorizontalAlignment.Center;Grid.SetColumn(clock,1);header.Children.Add(clock);
         status.Text="字幕 · 拖动移动";status.FontSize=11;status.TextTrimming=TextTrimming.CharacterEllipsis;status.VerticalAlignment=VerticalAlignment.Center;
         Border handle=new Border {Child=status,Background=Brushes.Transparent,Cursor=Cursors.SizeAll,Padding=new Thickness(9,0,3,0),ToolTip="拖动此处移动，拖边框缩放"};
         handle.MouseLeftButtonDown+=delegate {try{DragMove();SaveGeometry();}catch{};};header.Children.Add(handle);
-        top.Child=header;top.Height=30;top.VerticalAlignment=VerticalAlignment.Top;top.Margin=new Thickness(5,4,5,0);top.BorderThickness=new Thickness(0,0,0,1);canvas.Children.Add(top);
+        top.Child=header;top.Height=24;top.VerticalAlignment=VerticalAlignment.Top;top.Margin=new Thickness(4,1,4,0);top.BorderThickness=new Thickness(0,0,0,1);canvas.Children.Add(top);
         WrapPanel controls=new WrapPanel {Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Center};
         Button previous=MakeButton("|‹",delegate{Command("prev",0);});previous.ToolTip="上一集 / 上一分P";previous.FontSize=17;controls.Children.Add(previous);
         backward=MakeButton("−10s",delegate{Command("seekBy",-step);});backward.ToolTip="快退";controls.Children.Add(backward);
@@ -182,17 +203,31 @@ internal sealed class SubtitleWindow : Window {
         Button next=MakeButton("›|",delegate{Command("next",0);});next.ToolTip="下一集 / 下一分P";next.FontSize=17;controls.Children.Add(next);
         rateButton.Content="1×";rateButton.MinWidth=44;rateButton.Margin=new Thickness(6,0,2,0);rateButton.ToolTip="播放速度";rateButton.Click+=delegate{OpenPanel(ratePanel);};controls.Children.Add(rateButton);
         controls.Children.Add(MakeButton("外观",delegate{OpenPanel(settings);}));
-        bottom.Child=controls;bottom.HorizontalAlignment=HorizontalAlignment.Center;bottom.VerticalAlignment=VerticalAlignment.Bottom;bottom.Margin=new Thickness(5,0,5,4);bottom.Padding=new Thickness(5,3,5,3);bottom.BorderThickness=new Thickness(1);canvas.Children.Add(bottom);
+        foreach(Button control in controls.Children){control.FontSize=11;control.MinHeight=22;control.Padding=new Thickness(5,0,5,0);control.Margin=new Thickness(1,0,1,0);}
+        play.FontSize=15;
+        StackPanel footer=new StackPanel();seekRail.Children.Add(seekTrack);seekRail.Children.Add(seekFill);seekRail.Children.Add(seekKnob);footer.Children.Add(controls);footer.Children.Add(seekRail);
+        bottom.Child=footer;bottom.VerticalAlignment=VerticalAlignment.Bottom;bottom.Margin=new Thickness(7,0,7,2);bottom.Padding=new Thickness(2,0,2,0);bottom.BorderThickness=new Thickness(0);canvas.Children.Add(bottom);
+        idleTrack.Child=idleFill;canvas.Children.Add(idleTrack);
+        System.Windows.Automation.AutomationProperties.SetName(seekRail,"视频播放进度");
+        seekRail.SizeChanged+=delegate{UpdateProgress();};
+        seekRail.PreviewMouseLeftButtonDown+=delegate(object sender,MouseButtonEventArgs e){if(duration<=0)return;seekRail.Focus();BeginSeek();seekRail.CaptureMouse();PreviewSeek(e.GetPosition(seekRail).X);e.Handled=true;};
+        seekRail.PreviewMouseMove+=delegate(object sender,MouseEventArgs e){if(scrubbing)PreviewSeek(e.GetPosition(seekRail).X);};
+        seekRail.PreviewMouseLeftButtonUp+=delegate(object sender,MouseButtonEventArgs e){if(!scrubbing)return;PreviewSeek(e.GetPosition(seekRail).X);FinishSeek(true);e.Handled=true;};
+        seekRail.LostMouseCapture+=delegate{if(scrubbing)FinishSeek(false);};
+        seekRail.PreviewKeyDown+=delegate(object sender,KeyEventArgs e){if(duration<=0)return;if(e.Key==Key.Left||e.Key==Key.Right||e.Key==Key.Home||e.Key==Key.End){double target=e.Key==Key.Home?0:e.Key==Key.End?duration:seconds+(e.Key==Key.Left?-step:step);Command("seekTo",Math.Max(0,Math.Min(duration,target)));e.Handled=true;}else if(e.Key==Key.Escape&&scrubbing){FinishSeek(false);e.Handled=true;}};
         alpha.Minimum=0;alpha.Maximum=100;alpha.Value=100;alpha.TickFrequency=1;alpha.IsSnapToTickEnabled=true;
         captionAlpha.Minimum=0;captionAlpha.Maximum=100;captionAlpha.Value=90;captionAlpha.TickFrequency=1;captionAlpha.IsSnapToTickEnabled=true;
         font.Minimum=12;font.Maximum=32;font.Value=18;font.TickFrequency=1;font.IsSnapToTickEnabled=true;
         alpha.ValueChanged+=delegate {if(applying)return;transparency=alpha.Value;ApplyAppearance();SendAppearance();};
         captionAlpha.ValueChanged+=delegate {if(applying)return;captionOpacity=captionAlpha.Value;ApplyAppearance();SendAppearance();};
         font.ValueChanged+=delegate {if(applying)return;fontSize=font.Value;ApplyAppearance();SendAppearance();Center();};
+        seekStep.Minimum=1;seekStep.Maximum=120;seekStep.TickFrequency=1;seekStep.IsSnapToTickEnabled=true;seekStep.Value=step;
+        seekStep.ValueChanged+=delegate{if(applying)return;step=seekStep.Value;ApplyAppearance();SendAppearance();};
         settingsFields.Add(Field("字号",fontLabel,font));settingsFields.Add(Field("窗口透明度",alphaLabel,alpha));settingsFields.Add(Field("字幕底色",captionAlphaLabel,captionAlpha));
         UniformGrid themeOptions=new UniformGrid {Columns=2};ConfigureOption(lightButton,"浅色 · 深字",delegate{theme="paper";ApplyAppearance();SendAppearance();});ConfigureOption(darkButton,"深色 · 浅字",delegate{theme="night";ApplyAppearance();SendAppearance();});themeOptions.Children.Add(lightButton);themeOptions.Children.Add(darkButton);
         UniformGrid layoutOptions=new UniformGrid {Columns=2};ConfigureOption(flowButton,"连续文本",delegate{ChangeLayout("flow");});ConfigureOption(linesButton,"逐句换行",delegate{ChangeLayout("lines");});layoutOptions.Children.Add(flowButton);layoutOptions.Children.Add(linesButton);
         settingsFields.Add(Field("配色",new TextBlock(),themeOptions));settingsFields.Add(Field("排版",new TextBlock(),layoutOptions));
+        settingsFields.Add(Field("快进 / 快退步长",stepLabel,seekStep));
         foreach(FrameworkElement field in settingsFields)settingsGrid.Children.Add(field);
         StackPanel body=new StackPanel();body.Children.Add(settingsGrid);body.Children.Add(new Expander {Header="调试信息",FontSize=10,Content=diagnostics,Margin=new Thickness(0,6,0,4)});
         settingsScroll.Content=body;settingsScroll.VerticalScrollBarVisibility=ScrollBarVisibility.Auto;settingsScroll.HorizontalScrollBarVisibility=ScrollBarVisibility.Disabled;
@@ -222,14 +257,29 @@ internal sealed class SubtitleWindow : Window {
     void UpdateRate(){rateButton.Content=currentRate.ToString("0.##")+"×";foreach(Button button in rateButtons)SelectOption(button,Math.Abs((double)button.Tag-currentRate)<0.01);}
     void SelectOption(Button button,bool selected){button.SetResourceReference(Control.ForegroundProperty,selected?"Accent":"ControlInk");button.SetResourceReference(Control.BackgroundProperty,selected?"SelectedSurface":"ControlSurface");button.FontWeight=selected?FontWeights.SemiBold:FontWeights.Normal;}
     void ChangeLayout(string value){if(layout==value)return;layout=value;RebuildCues();ApplyAppearance();SendAppearance();if(following)Dispatcher.BeginInvoke(new Action(Center),DispatcherPriority.Loaded);}
-    void SendAppearance(){Program.Send(new{type="command",action="appearance",fontSize=fontSize,transparency=transparency,captionOpacity=captionOpacity,theme=theme,layout=layout});}
+    void SendAppearance(){Program.Send(new{type="command",action="appearance",fontSize=fontSize,transparency=transparency,captionOpacity=captionOpacity,step=step,theme=theme,layout=layout});}
+    static string TimeLabel(double value){int s=(int)Math.Max(0,value);return s>=3600?(s/3600)+":"+((s/60)%60).ToString("00")+":"+(s%60).ToString("00"):(s/60)+":"+(s%60).ToString("00");}
+    // 拖动只预览，松手发送一次跳转；播放回传不能把拖动中的滑块拉走。
+    void BeginSeek(){if(duration<=0)return;scrubbing=true;previewTime=seconds;}
+    void PreviewSeek(double x){if(!scrubbing)return;previewTime=Math.Max(0,Math.Min(1,x/Math.Max(1,seekRail.ActualWidth)))*duration;UpdateProgress();}
+    void FinishSeek(bool commit){if(!scrubbing)return;double target=previewTime;scrubbing=false;seekRail.ReleaseMouseCapture();if(commit&&duration>0){following=true;follow.Visibility=Visibility.Collapsed;Command("seekTo",Math.Max(0,Math.Min(duration,target)));}UpdateProgress();if(!IsMouseOver)Reveal(false);}
+    void UpdateProgress(){
+        double display=scrubbing?previewTime:seconds;
+        double fraction=duration>0?Math.Max(0,Math.Min(1,display/duration)):0;
+        clock.Text=TimeLabel(display);clock.ToolTip=duration>0?"总时长 "+TimeLabel(duration):"正在读取视频时长";
+        seekRail.IsEnabled=duration>0;seekRail.ToolTip=duration>0?TimeLabel(display)+" / "+TimeLabel(duration):"视频时长暂不可用";
+        seekRail.Opacity=duration>0?1:.4;seekKnob.Visibility=duration>0?Visibility.Visible:Visibility.Collapsed;
+        seekFill.Width=Math.Max(0,seekRail.ActualWidth*fraction);
+        seekKnob.RenderTransform=new TranslateTransform(Math.Max(0,(seekRail.ActualWidth-6)*fraction),0);
+        idleFill.Width=Math.Max(0,canvas.ActualWidth*(duration>0?Math.Max(0,Math.Min(1,seconds/duration)):0));
+    }
     void BuildGrips() {
         foreach(string edge in new string[]{"n","s","e","w","ne","nw","se","sw"}) {
             string dir=edge;
             Thumb grip=new Thumb {Background=Brushes.Transparent,Opacity=0.6};
             FrameworkElementFactory face=new FrameworkElementFactory(typeof(Border));face.SetValue(Border.BackgroundProperty,Brushes.Transparent);face.SetValue(Border.BorderBrushProperty,Brushes.SlateGray);face.SetValue(Border.BorderThicknessProperty,new Thickness(edge.Contains("w")?1:0,edge.Contains("n")?1:0,edge.Contains("e")?1:0,edge.Contains("s")?1:0));grip.Template=new ControlTemplate(typeof(Thumb)){VisualTree=face};
             bool vertical=edge=="n"||edge=="s", horizontal=edge=="w"||edge=="e";
-            grip.Width=vertical?Double.NaN:8;grip.Height=horizontal?Double.NaN:8;
+            grip.Width=vertical?Double.NaN:6;grip.Height=horizontal?Double.NaN:4;
             grip.HorizontalAlignment=edge.Contains("w")?HorizontalAlignment.Left:edge.Contains("e")?HorizontalAlignment.Right:HorizontalAlignment.Stretch;
             grip.VerticalAlignment=edge.Contains("n")?VerticalAlignment.Top:edge.Contains("s")?VerticalAlignment.Bottom:VerticalAlignment.Stretch;
             if(vertical)grip.Margin=new Thickness(8,0,8,0);if(horizontal)grip.Margin=new Thickness(0,8,0,8);
@@ -245,11 +295,12 @@ internal sealed class SubtitleWindow : Window {
         if(direction.Contains("n")){double newHeight=Math.Max(MinHeight,Math.Min(1800,Height-dy));Top+=Height-newHeight;Height=newHeight;}
     }
     void Reveal(bool visible) {
+        idleTrack.Visibility=visible?Visibility.Collapsed:Visibility.Visible;
         showing=visible;top.Visibility=bottom.Visibility=visible && settings.Visibility!=Visibility.Visible && ratePanel.Visibility!=Visibility.Visible?Visibility.Visible:Visibility.Collapsed;
         if(!visible)settings.Visibility=ratePanel.Visibility=Visibility.Collapsed;
         foreach(Thumb grip in grips)grip.Visibility=visible?Visibility.Visible:Visibility.Collapsed;
         // 仅工具栏显示时避让；移出即回收全部高度，不保留空白栏。
-        scroll.Margin=new Thickness(10,visible?36:4,10,visible?42:4);
+        scroll.Margin=new Thickness(8,visible?26:2,8,visible?38:3);
         scroll.VerticalScrollBarVisibility=visible?ScrollBarVisibility.Auto:ScrollBarVisibility.Hidden;
         if(following)Dispatcher.BeginInvoke(new Action(Center),DispatcherPriority.Loaded);
     }
@@ -263,6 +314,9 @@ internal sealed class SubtitleWindow : Window {
         Brush rule=new SolidColorBrush(dark?Color.FromRgb(78,74,67):Color.FromRgb(214,208,196));
         Resources["ControlSurface"]=panel;Resources["ControlInk"]=ink;Resources["ControlBorder"]=rule;
         Resources["Accent"]=new SolidColorBrush(dark?Color.FromRgb(231,182,156):Color.FromRgb(154,73,56));
+        Brush timeInk=new SolidColorBrush(dark?Color.FromRgb(114,220,209):Color.FromRgb(17,106,114));
+        clock.Foreground=timeInk;seekFill.Background=seekKnob.Background=idleFill.Background=timeInk;
+        seekTrack.Background=rule;idleTrack.Background=new SolidColorBrush(dark?Color.FromArgb(90,200,200,200):Color.FromArgb(70,70,70,70));
         Resources["ControlHover"]=Resources["SelectedSurface"]=new SolidColorBrush(dark?Color.FromRgb(58,48,41):Color.FromRgb(236,226,216));
         top.Background=bottom.Background=settings.Background=ratePanel.Background=panel;
         top.BorderBrush=bottom.BorderBrush=settings.BorderBrush=ratePanel.BorderBrush=rule;
@@ -270,6 +324,7 @@ internal sealed class SubtitleWindow : Window {
         text.FontSize=fontSize;text.LineHeight=fontSize*1.6;
         text.Effect=null;
         alphaLabel.Text=Math.Round(transparency)+"%";captionAlphaLabel.Text=Math.Round(captionOpacity)+"% 不透明";fontLabel.Text=Math.Round(fontSize)+"px";
+        stepLabel.Text=Math.Round(step)+"秒";backward.Content="−"+step+"s";forward.Content="+"+step+"s";
         SelectOption(lightButton,theme=="paper");SelectOption(darkButton,theme=="night");SelectOption(flowButton,layout=="flow");SelectOption(linesButton,layout=="lines");UpdateRate();
         for(int i=0;i<lines.Count;i++)StyleLine(i);
         if(lines.Count==0)foreach(Inline inline in text.Inlines){inline.Background=Brushes.Transparent;inline.Foreground=text.Foreground;}
@@ -290,12 +345,15 @@ internal sealed class SubtitleWindow : Window {
         applying=true;
         try {
             seconds=Math.Max(0,Number(data,"time",seconds));step=Math.Max(1,Math.Min(120,Number(data,"step",step)));
+            string nextKey=StringValue(data,"videoKey",videoKey);double nextDuration=Math.Max(0,Number(data,"duration",duration));
+            if(scrubbing&&(nextKey!=videoKey||nextDuration!=duration))FinishSeek(false);
+            videoKey=nextKey;duration=nextDuration;seekStep.Value=step;
             fontSize=Math.Max(12,Math.Min(32,Number(data,"fontSize",fontSize)));transparency=Math.Max(0,Math.Min(100,Number(data,"transparency",transparency)));captionOpacity=Math.Max(0,Math.Min(100,Number(data,"captionOpacity",captionOpacity)));
             theme=StringValue(data,"theme",theme)=="paper"?"paper":"night";alpha.Value=transparency;font.Value=fontSize;captionAlpha.Value=captionOpacity;
             string nextLayout=StringValue(data,"layout",layout)=="lines"?"lines":"flow";bool layoutChanged=nextLayout!=layout;layout=nextLayout;
             object paused;play.Content=data.TryGetValue("paused",out paused)&&paused is bool&&(bool)paused?"▷":"Ⅱ";
             currentRate=Number(data,"rate",currentRate);
-            clock.Text=((int)seconds/60)+":"+((int)seconds%60).ToString("00");backward.Content="−"+step+"s";forward.Content="+"+step+"s";
+            UpdateProgress();
             lastStatus=StringValue(data,"status",lastStatus);status.Text="字幕 · "+(lastStatus.Length>0?lastStatus:"拖动移动");
             object list;bool replaced=data.TryGetValue("cues",out list)&&list is IEnumerable && !(list is string);
             if(replaced){
@@ -513,6 +571,46 @@ internal sealed class SubtitleWindow : Window {
         File.WriteAllText(Path.Combine(dir,"native-v5-checks.json"),Program.Json.Serialize(new {kind="isolated-native-offscreen",ratePanelSurvivesStateUpdates=true,selectedRate=currentRate,noPopup=true,flowHeight=flowHeight,linesHeight=linesHeight,cueEndPreserved=true,clickSeekPreserved=true,settingsOpaque=settingsColor.A,narrowSettingsScrollable=true,renderScale=1.5,checks=new[]{"in-window rate picker through repeated state updates","rate command and acknowledgement","flow and lines preserve timing and highlight","opaque settings with fixed header and scroll body","360x160 single-column settings fully reachable","150% self-render","light/dark editorial style"}}));
         File.WriteAllText(Path.Combine(dir,"native-checks.json"),Program.Json.Serialize(new {kind="isolated-native-offscreen",layered=true,topmost=true,allowsTransparency=AllowsTransparency,idleSubtitleHeight=idleHeight,hoverSubtitleHeight=hoverHeight,windowHeight=Height,backgroundAlphaAt100=color.A,renderedBackgroundAlpha=pixel[3],foregroundAlpha=((SolidColorBrush)text.Foreground).Color.A,followedScroll=followed,activeYInViewport=activeRect.Top-followed,longTextCharacters=longText.Length,longTextHeight=measuredLongTextHeight,checks=new[]{"real HWND layered and topmost styles","full-frame idle captions restored after toolbar hides","rendered transparent alpha independent of text","native long text wrap and no truncation","formatted geometry matches actual text height","manual scrolling not overridden","play rate appearance commands","native window only rendering, no desktop capture"}}));
         ReadabilityTest(dir);
+        ProgressTest(dir);
         string oldError=Path.Combine(dir,"native-test-error.txt");if(File.Exists(oldError))File.Delete(oldError);
+    }
+    void ProgressTest(string dir) {
+        ClosePanels();Width=760;Height=192;following=true;
+        Apply(new Dictionary<string,object>{{"type","state"},{"duration",1800},{"time",683},{"videoKey","sample-a"},{"theme","paper"},{"fontSize",18},{"index",1},{"status","已载入 AI 字幕"},{"cues",new object[]{
+            new Dictionary<string,object>{{"start",670},{"end",680},{"text","听一段长访谈，把字幕放在身边。"}},
+            new Dictionary<string,object>{{"start",680},{"end",690},{"text","正在播放的这一句，用下划线轻轻标记。"}},
+            new Dictionary<string,object>{{"start",690},{"end",700},{"text","点击字幕后，空格暂停，左右键快进快退。"}}}}});
+        Reveal(true);FlushLayout();UpdateProgress();
+        Point clockPosition=clock.TranslatePoint(new Point(clock.ActualWidth/2,0),canvas);
+        if(Math.Abs(clockPosition.X-ActualWidth/2)>1 || clock.FontWeight!=FontWeights.Bold)throw new Exception("时间未居中加粗");
+        if(bottom.ActualHeight>36 || bottom.ActualHeight<=0 || top.ActualHeight>24 || top.Visibility!=Visibility.Visible)throw new Exception("控制栏没有缩小");
+        double controlHeight=bottom.ActualHeight;
+        double hoverHeight=scroll.ActualHeight;
+        Capture(Path.Combine(dir,"native-v7-hover.png"));
+        Reveal(false);FlushLayout();UpdateProgress();
+        if(idleTrack.Visibility!=Visibility.Visible || idleTrack.ActualHeight!=2 || Math.Abs(idleFill.ActualWidth-ActualWidth*683/1800)>1)throw new Exception("空闲细线进度不正确");
+        double idleHeight=scroll.ActualHeight;Capture(Path.Combine(dir,"native-v7-idle.png"));
+        Reveal(true);FlushLayout();BeginSeek();PreviewSeek(seekRail.ActualWidth*.75);
+        object before=Program.LastTestMessage;
+        Apply(new Dictionary<string,object>{{"type","state"},{"time",684}});
+        if(Math.Abs(previewTime-1350)>.01||clock.Text!="22:30"||Program.LastTestMessage!=before)throw new Exception("播放更新打断拖动或提前跳转");
+        FinishSeek(true);
+        string command=Program.Json.Serialize(Program.LastTestMessage);
+        if(!command.Contains("\"seekTo\"")||!command.Contains("1350"))throw new Exception("拖动未跳转");
+        BeginSeek();PreviewSeek(-50);if(previewTime!=0)throw new Exception("拖动左边界错误");PreviewSeek(seekRail.ActualWidth+50);if(previewTime!=duration)throw new Exception("拖动右边界错误");FinishSeek(false);
+        BeginSeek();Apply(new Dictionary<string,object>{{"type","state"},{"videoKey","sample-b"},{"time",0}});if(scrubbing)throw new Exception("换视频后仍在拖动");
+        Apply(new Dictionary<string,object>{{"type","state"},{"duration",0}});BeginSeek();if(scrubbing||seekRail.IsEnabled)throw new Exception("未知时长仍可拖动");
+        foreach(Key key in new Key[]{Key.Space,Key.Left,Key.Right}){
+            KeyEventArgs e=new KeyEventArgs(Keyboard.PrimaryDevice,PresentationSource.FromVisual(text),0,key){RoutedEvent=Keyboard.PreviewKeyDownEvent};text.RaiseEvent(e);
+            command=Program.Json.Serialize(Program.LastTestMessage);
+            if(!e.Handled||!command.Contains(key==Key.Space?"\"toggle\"":"\"seekBy\""))throw new Exception("字幕区快捷键失败");
+        }
+        seekStep.Value=15;if(!Program.Json.Serialize(Program.LastTestMessage).Contains("\"step\":15"))throw new Exception("步长未回传");
+        Apply(new Dictionary<string,object>{{"type","state"},{"duration",1800},{"time",683},{"theme","night"}});Reveal(true);FlushLayout();UpdateProgress();Capture(Path.Combine(dir,"native-v7-dark.png"));
+        Width=360;Height=160;Reveal(true);FlushLayout();UpdateProgress();
+        if(bottom.ActualHeight>36 || Math.Abs(clock.TranslatePoint(new Point(clock.ActualWidth/2,0),canvas).X-180)>1)throw new Exception("窄窗布局溢出");
+        Capture(Path.Combine(dir,"native-v7-narrow.png"));
+        OpenPanel(settings);FlushLayout();settingsScroll.ScrollToEnd();FlushLayout();Capture(Path.Combine(dir,"native-v7-settings.png"));
+        File.WriteAllText(Path.Combine(dir,"native-v7-checks.json"),Program.Json.Serialize(new{kind="isolated-native-offscreen",centeredClock=true,boldClock=true,hoverSubtitleHeight=hoverHeight,idleSubtitleHeight=idleHeight,topHeight=24,bottomHeight=controlHeight,idleProgressHeight=2,seekPreviewSurvivesState=true,seekCommitSeconds=1350,unknownDurationDisabled=true,videoChangeCancelsSeek=true,captionSpaceLeftRight=true,stepRoundtrip=true,narrowLayout=true}));
     }
 }

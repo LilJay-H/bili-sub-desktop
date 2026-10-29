@@ -119,3 +119,14 @@ test('四层串联：排版默认flow，桌面与页内双向同步，非法layo
     env.desktop.setAppearance({layout:'illegal'});await env.settle();assert.equal(env.nativeStates.at(-1).layout,'flow');
   } finally {await env.close();}
 });
+
+test('进度链路传真实总时长，拖动命令落到video并限界，未知时长归零',async()=>{
+  const e=integratedSetup();await e.desktop.open();await e.settle();
+  try {
+    assert.equal(e.nativeStates.at(-1).duration,500);
+    e.command({action:'seekTo',value:375});await e.settle();assert.equal(e.video.currentTime,375);assert.equal(e.nativeStates.at(-1).time,375);
+    e.command({action:'seekTo',value:999});await e.settle();assert.equal(e.video.currentTime,500);
+    e.video.duration=Infinity;e.video.dispatchEvent(new Event('durationchange'));await e.settle();assert.equal(e.nativeStates.at(-1).duration,0);
+    e.video.duration=200;e.video.currentTime=0;e.video.dispatchEvent(new Event('loadedmetadata'));await e.settle();assert.equal(e.nativeStates.at(-1).duration,200);
+  } finally {await e.close();}
+});

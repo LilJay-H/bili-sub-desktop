@@ -1,0 +1,15 @@
+{
+  "kind": "native-stdio-loopback",
+  "checks": [
+    "ready frame",
+    "split length and UTF-8 body",
+    "state accepted",
+    "unknown type ignored",
+    "close and closed frame",
+    "clean exit, no protocol leakage"
+  ],
+  "messages": [
+    "ready",
+    "closed"
+  ]
+}
