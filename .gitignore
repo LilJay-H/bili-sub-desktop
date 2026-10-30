@@ -7,3 +7,6 @@ bili-sub-demo-v0.6.zip
 bili-sub-demo.zip
 # Intermediate renders; the final v0.7.0 evidence is tracked.
 /evidence/v0.7/
+
+# Release packages are published on GitHub Releases, not committed.
+/bili-sub-demo*.zip
