@@ -11,7 +11,7 @@
 1. 使用 Windows 上较新的 Chrome 或 Edge（扩展最低要求 Chromium 116；具体 Document PiP 支持仍需本机实测）。
 2. Chrome 打开 `chrome://extensions`；Edge 打开 `edge://extensions`。
 3. 开启扩展页面的「开发者模式」，点击「加载已解压的扩展程序」。
-4. 选择含 `manifest.json` 的项目根文件夹，即 `C:\Users\kk\Documents\ChatGPT\B站字幕全局显示`，不要选择 `content` 子文件夹。
+4. 选择含 `manifest.json` 的项目根文件夹，即 `E:\workbench\Program\bili-sub-desktop`，不要选择 `content` 子文件夹。
 5. 确认扩展卡片没有错误。更新代码后，先点扩展卡片的「重新加载」，再刷新 B 站视频页。
 6. 打开用户提供的测试视频 `https://www.bilibili.com/zh-Hans/video/BV1XNtJ6UEmm/`。如果它不可用或没有可读字幕，另选一个自己能够正常播放且有字幕的视频。该链接尚未被确认为某一字幕类型的验收样本。
 7. 在 B 站播放器里正常播放，并开启播放器字幕。观察右下角「字幕置顶」按钮和歌词卡。
